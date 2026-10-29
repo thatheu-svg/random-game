@@ -46,15 +46,17 @@ public class Player {
         private static final int PLAYER_SIZE = 48;
         private static final int MOVE_AMOUNT = 8;
         private static final Color PLAYER_COLOR = new Color(128, 130, 177);  // used if the sprite fails to load
-        private static final int PLAYER_MAX_HP = 100;
-        private static final int CONTACT_DAMAGE = 40;        // damage per enemy touch (high for testing)
+        private int playerMaxHp = 100;
         private static final int HIT_COOLDOWN_FRAMES = 60;   // invincibility after being hit
         private static final int HEAL_COOLDOWN_FRAMES = 60;
         private static final int HP_HEALED = 20;
+        private int hpHealed = HP_HEALED;
 
         // Puddles
         private static final int RADIUS_FIRST = 48;
+        private int radius = RADIUS_FIRST;
         private static final int DAMAGE_FIRST = 20;
+        private int damage = DAMAGE_FIRST;
         private static final int MAX_AGE = 300;              // puddle lifetime in frames
         private static final int FRAMES_PER_HIT = 30;        // frames between damage pulses
         private static final int PLACE_COOLDOWN_FRAMES = 30; // wait between placing puddles
@@ -63,18 +65,23 @@ public class Player {
         private static final int MIN_DELAY_FRAMES = 10;
 
         // Enemy
-        private static final int MAX_ENEMIES = 20;
+        private static final int MAX_ENEMIES = 30;
         private static final int START_SPAWN_GAP = 300;      // 5 seconds between spawns at the start
         private static final int FASTEST_SPAWN_GAP = FRAMES_PER_SECOND;  // 1 second at max difficulty
         private static final int FRAMES_TO_MAX_DIFFICULTY = 18000;       // 5 minutes
-        private static final double START_ENEMY_SPEED = 2;
-        private static final double MAX_ENEMY_SPEED = 5;
-        private static final int START_HP_ENEMY = 100;
+        private static final double BASIC_ENEMY_SPEED = 2;
+        private static final double MAX_BASIC_ENEMY_SPEED = 5;
         private static final int KILL_COUNT_START = 0;
+        private static final int BASIC_ENEMY_HP = 100;
+        private static final int BASIC_ENEMY_SIZE = 50;
+        private static final int BASIC_ENEMY_DAMAGE = 40;
+        private static final Color BASIC_ENEMY_COLOR = (Color.WHITE);
+        private static final Color BASIC_ENEMY_OUTLINE_COLOR = (Color.GRAY);
 
         // Things in the world
         private final List<Enemy> enemies = new ArrayList<>();
         private final List<Puddle> puddles = new ArrayList<>();
+        private final List<Upgrade> allUpgrades = new ArrayList<>();
         private final Set<Integer> pressedKeys = new HashSet<>();
         private final Random random = new Random();
 
@@ -85,7 +92,7 @@ public class Player {
         // Player state
         private int playerX = PANEL_WIDTH / 2;
         private int playerY = PANEL_HEIGHT / 2;
-        private int playerHp = PLAYER_MAX_HP;
+        private int playerHp = playerMaxHp;
         private int killCount = KILL_COUNT_START;
 
         // Timers (all counted in frames)
@@ -94,6 +101,10 @@ public class Player {
         private int healCooldown = HEAL_COOLDOWN_FRAMES;
         private int frameCount = 0;
         private int framesUntilSpawn = START_SPAWN_GAP;
+        private boolean choosingUpgrade = false;
+        private boolean gamePaused = false;
+        private double moreKillsToNextUpgrade = 0;
+        private int killsToUpgrade = 5 + (int) moreKillsToNextUpgrade;
 
         // puddle stats
         private static class Puddle {
@@ -127,8 +138,8 @@ public class Player {
             setPreferredSize(new Dimension(PANEL_WIDTH, PANEL_HEIGHT));
             setBackground(Color.BLACK);
 
-            // checks for WASD
-            for (int keyCode : new int[] {KeyEvent.VK_W, KeyEvent.VK_A, KeyEvent.VK_S, KeyEvent.VK_D, KeyEvent.VK_R}) {
+            // checks for keyboard controls
+            for (int keyCode : new int[] {KeyEvent.VK_W, KeyEvent.VK_A, KeyEvent.VK_S, KeyEvent.VK_D, KeyEvent.VK_R, KeyEvent.VK_1, KeyEvent.VK_2, KeyEvent.VK_3, KeyEvent.VK_ENTER, KeyEvent.VK_P}) {
                 bindKey(keyCode, true);
                 bindKey(keyCode, false);
             }
@@ -149,6 +160,8 @@ public class Player {
                     double fraction = Math.min(distance, MAX_RANGE) / MAX_RANGE;
                     int delay = MIN_DELAY_FRAMES + (int) (fraction * (MAX_DELAY_FRAMES - MIN_DELAY_FRAMES));
                     if (isGameOver()) return;
+                    if (choosingUpgrade) return;
+                    if (gamePaused) return;
                     if (placeCooldown > 0) return;
                     if (distance > MAX_RANGE) {
                         targetX = playerCenterX + dx * (MAX_RANGE / distance);
@@ -157,12 +170,15 @@ public class Player {
 
 
                     Puddle puddle = new Puddle(
-                        targetX, targetY, RADIUS_FIRST, DAMAGE_FIRST, 0, delay);
+                        targetX, targetY, radius, damage, 0, delay);
                     puddles.add(puddle);
                     placeCooldown = PLACE_COOLDOWN_FRAMES;
                 }
             });
 
+        allUpgrades.add(new BiggerPuddles());
+        allUpgrades.add(new MoreDamage());
+        allUpgrades.add(new MorePlayerHp());
             // Start the game loop
             new Timer(FRAME_DELAY_MS, e -> updateGame()).start();
         }
@@ -204,6 +220,39 @@ public class Player {
             if (pressed && keyCode == KeyEvent.VK_R && isGameOver()) {
                 restartGame();
             }
+
+            if (pressed && keyCode == KeyEvent.VK_P) {
+                gamePaused = !gamePaused;
+                repaint();
+            }
+
+            if (pressed && keyCode == KeyEvent.VK_ENTER && killsToUpgrade <= 0) {
+                choosingUpgrade = true;
+                repaint();
+            }
+
+            if (choosingUpgrade) {
+                if (pressed && keyCode == KeyEvent.VK_1) {
+                    allUpgrades.get(0).apply();
+                    killsToUpgrade = 5 + (int) moreKillsToNextUpgrade;
+                    choosingUpgrade = false;
+                    repaint();
+                }
+
+                if (pressed && keyCode == KeyEvent.VK_2) {
+                    allUpgrades.get(1).apply();
+                    killsToUpgrade = 5 + (int) moreKillsToNextUpgrade;
+                    choosingUpgrade = false;
+                    repaint();
+                }
+
+                if (pressed && keyCode == KeyEvent.VK_3) {
+                    allUpgrades.get(2).apply();
+                    killsToUpgrade = 5 + (int) moreKillsToNextUpgrade;
+                    choosingUpgrade = false;
+                    repaint();
+                }
+            }
         }
 
         // ==================== GAME LOOP ====================
@@ -211,11 +260,14 @@ public class Player {
         // Runs every FRAME_DELAY_MS: cooldowns, spawning, movement, damage, cleanup, redraw
         private void updateGame() {
             if (isGameOver()) return;
+            if (choosingUpgrade) return;
+            if (gamePaused) return;
 
             frameCount++;
             if (hitCooldown < HIT_COOLDOWN_FRAMES) hitCooldown++;
             if (placeCooldown > 0) placeCooldown--;
             if (healCooldown < HEAL_COOLDOWN_FRAMES) healCooldown++;
+        
 
             handleSpawning();
             updateMovement();
@@ -226,7 +278,7 @@ public class Player {
             for (Enemy enemy : enemies) {
                 enemy.moveToward(playerCenterX, playerCenterY);
                 if (enemy.isTouchingPlayer(playerX, playerY, PLAYER_SIZE) && hitCooldown >= HIT_COOLDOWN_FRAMES) {
-                    damagePlayer(CONTACT_DAMAGE);
+                    damagePlayer(enemy.damage);
                 }
             }
 
@@ -243,15 +295,17 @@ public class Player {
                         damageEnemiesIn(puddle);
                     }
                 }
-                if (puddle.isTouchingPlayer(playerCenterX, playerCenterY, PLAYER_SIZE) && healCooldown == HEAL_COOLDOWN_FRAMES && puddle.delay == 0 && playerHp < PLAYER_MAX_HP) {
-                    healPlayer(HP_HEALED);
+                if (puddle.isTouchingPlayer(playerCenterX, playerCenterY, PLAYER_SIZE) && healCooldown == HEAL_COOLDOWN_FRAMES && puddle.delay == 0 && playerHp < playerMaxHp) {
+                    healPlayer(hpHealed);
                     }
                 }
 
-            // Remove dead enemies and expired puddles
+            // Remove dead enemies and expired puddles, also counts kills for now
             int enemiesBefore = enemies.size();
             enemies.removeIf(Enemy::isDead);
             killCount += enemiesBefore - enemies.size();
+            killsToUpgrade -= enemiesBefore - enemies.size();
+            moreKillsToNextUpgrade += (enemiesBefore - enemies.size())/2.0;
             puddles.removeIf(Puddle::isExpired);
             repaint();
         }
@@ -265,6 +319,8 @@ public class Player {
         // Moves the player based on held keys, and keeps them on screen
         private void updateMovement() {
             if (isGameOver()) return;
+            if (choosingUpgrade) return;
+            if (gamePaused) return;
 
             int dx = 0;
             int dy = 0;
@@ -286,13 +342,14 @@ public class Player {
 
         private void healPlayer(int amount) {
             playerHp = playerHp + amount;
-            playerHp = Math.min(playerHp, PLAYER_MAX_HP);
+            playerHp = Math.min(playerHp, playerMaxHp);
             healCooldown = 0;
         }
 
         // Puts everything back to its starting values
         private void restartGame() {
-            playerHp = PLAYER_MAX_HP;
+            playerMaxHp = 100;
+            playerHp = playerMaxHp;
             playerX = PANEL_WIDTH / 2;
             playerY = PANEL_HEIGHT / 2;
             frameCount = 0;
@@ -301,6 +358,13 @@ public class Player {
             placeCooldown = 0;
             healCooldown = HEAL_COOLDOWN_FRAMES;
             killCount = KILL_COUNT_START;
+            radius = RADIUS_FIRST;
+            damage = DAMAGE_FIRST;
+            hpHealed = HP_HEALED;
+            moreKillsToNextUpgrade = 0;
+            killsToUpgrade = 5;
+            choosingUpgrade = false;
+            gamePaused = false;
             enemies.clear();
             puddles.clear();
         }
@@ -313,6 +377,42 @@ public class Player {
                 if (enemy.isInPuddle(puddle.x, puddle.y, puddle.radius)) {
                     enemy.takeDamage(puddle.damage);
                 }
+            }
+        }
+
+        private class BiggerPuddles implements Upgrade {
+            @Override 
+            public String getName() {
+                return "Bigger puddles(10)";
+            }
+
+            @Override
+            public void apply() {
+                radius += 10;
+            }
+        }
+
+        private class MoreDamage implements Upgrade {
+            @Override 
+            public String getName() {
+                return "Puddles do more damage(10)";
+            }
+
+            @Override
+            public void apply() {
+                damage += 10;
+            }
+        }
+
+        private class MorePlayerHp implements Upgrade {
+            @Override 
+            public String getName() {
+                return "Player has more health(20)";
+            }
+
+            @Override
+            public void apply() {
+                playerMaxHp += 20;
             }
         }
 
@@ -333,7 +433,7 @@ public class Player {
             int groupSize = 1 + random.nextInt(1 + (int) (difficulty * 3));
 
             // base speed rises with difficulty, plus a little randomness per enemy
-            double baseSpeed = START_ENEMY_SPEED + difficulty * (MAX_ENEMY_SPEED - START_ENEMY_SPEED);
+            double baseSpeed = BASIC_ENEMY_SPEED + difficulty * (MAX_BASIC_ENEMY_SPEED - BASIC_ENEMY_SPEED);
 
             // a group clusters near one random spot on the edge
             double[] spot = randomEdgePoint();
@@ -341,10 +441,17 @@ public class Player {
                 double speed = baseSpeed + random.nextDouble();
                 double x = spot[0] + random.nextInt(60) - 30;
                 double y = spot[1] + random.nextInt(60) - 30;
-                int size = 40;
-                int damage = CONTACT_DAMAGE;
-                Color color = new Color(255,255,255);
-                enemies.add(new Enemy(x, y, speed, START_HP_ENEMY, size, damage, color));
+                double roll = random.nextDouble();
+                Enemy enemy;
+                if (roll < difficulty * 0.3) {
+                    enemy = new TankEnemy(x, y, speed);
+                } else if (roll < difficulty * 0.3 + 0.2) {
+                    enemy = new FastEnemy(x, y, speed);
+                } else {
+                    enemy = new Enemy(x, y, speed, BASIC_ENEMY_HP,
+                            BASIC_ENEMY_SIZE, BASIC_ENEMY_DAMAGE, BASIC_ENEMY_COLOR, BASIC_ENEMY_OUTLINE_COLOR);
+                }
+                enemies.add(enemy);
             }
         }
 
@@ -379,8 +486,15 @@ public class Player {
             if (isGameOver()) {
                 drawGameOver(graphics);
             }
-        }
 
+            if (choosingUpgrade) {
+                drawMenu(graphics);
+            }
+
+            if (gamePaused) {
+                drawGamePaused(graphics);
+            }
+        }
         // Puddles are centered on their position, so the corner is one radius up and left
         private void drawPuddles(Graphics graphics) {
             for (Puddle puddle : puddles) {
@@ -420,19 +534,44 @@ public class Player {
 
             graphics.setColor(new Color(60, 180, 75));
             graphics.fillRect(barLeft, playerY - 10,
-                (int) (barWidth * Math.max(playerHp, 0) / (double) PLAYER_MAX_HP), 5);
+                (int) (barWidth * Math.max(playerHp, 0) / (double) playerMaxHp), 5);
+            
+            graphics.setColor(Color.WHITE);
+            graphics.setFont(new Font("Arial", Font.BOLD, 10));
+            graphics.drawString(" " + Math.max(playerHp, 0) + " / " + playerMaxHp, barLeft + 9, playerY - 11);
         }
 
-        private void drawKillCount(Graphics graphics) {
+        private void drawKillCount(Graphics graphics) { // also draws kills to upgrade for now, might change later
             graphics.setColor(Color.WHITE);
             graphics.setFont(new Font("Arial", Font.BOLD, 24));
             graphics.drawString("Kill Count:" + killCount, 6, 30);
+
+            graphics.setColor(Color.WHITE);
+            graphics.setFont(new Font("Arial", Font.BOLD, 24));
+            graphics.drawString("Kills to Upgrade:" + killsToUpgrade, 6, 54);
+        }
+
+        private void drawGamePaused(Graphics graphics) {
+            graphics.setColor(Color.WHITE);
+            graphics.setFont(new Font("Arial", Font.BOLD, 48));
+            graphics.drawString("PAUSED", getWidth() / 2 - 100, getHeight() / 2);
         }
 
         private void drawGameOver(Graphics graphics) {
             graphics.setColor(Color.WHITE);
             graphics.setFont(new Font("Arial", Font.BOLD, 48));
             graphics.drawString("It's genuinely so over...", getWidth() / 2 - 200, getHeight() / 2);
+        }
+
+        public void drawMenu(Graphics graphics) {
+            graphics.setColor(Color.GRAY);
+            graphics.fillRect(480, 270, 960, 540);
+
+            graphics.setColor(Color.WHITE);
+            graphics.setFont(new Font("Arial", Font.BOLD, 32));
+            for (int i = 0; i < allUpgrades.size(); i++) {
+                graphics.drawString((i + 1) + ": " + allUpgrades.get(i).getName(), 520, 350 + i * 60);
+            }
         }
     }
 }
