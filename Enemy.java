@@ -4,6 +4,7 @@ import java.awt.Graphics;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import javax.imageio.ImageIO;
@@ -37,7 +38,7 @@ public class Enemy {
         this.size = size;
         this.damage = damage;
         this.color = color;
-        this.outlineColor = outlineColor;
+        this.outlineColor = outlineColor; // a sama lama duma sama you assumin im a human
     }
 
     // Subclasses call this from their constructor to pick an icon
@@ -50,18 +51,32 @@ public class Enemy {
             return iconCache.get(path);
         }
         BufferedImage image = null;
-        File file = new File(path);
-        try {
-            image = ImageIO.read(file);
+        try (InputStream in = Enemy.class.getResourceAsStream("/" + path)) {
+            if (in != null) {
+                image = ImageIO.read(in);
+            } else if (new File(path).exists()) {
+                image = ImageIO.read(new File(path));
+            }
         } catch (IOException e) {
-            System.err.println("Could not load icon: " + file.getAbsolutePath());
+            // falls through to the message below
         }
-        iconCache.put(path, image);   // remembers failures too, so the error prints once
+        if (image == null) {
+            System.err.println("Could not load icon: " + path);
+        }
+        iconCache.put(path, image);
         return image;
     }
 
     public int getDamage() {
         return damage;
+    }
+
+    public int getPosX() {
+        return (int) x;
+    }
+
+    public int getPosY() {
+        return (int) y;
     }
 
     public void moveToward(double targetX, double targetY) {

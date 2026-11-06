@@ -81,11 +81,6 @@ Gameplay values are constants at the top of `PlayerPanel` in `Player.java`. Time
 | `TankEnemy.java` | Subclass of `Enemy` with higher HP, larger size, and lower speed. |
 | `Upgrade.java` | Interface implemented by each upgrade. |
 
-## Accessing through itch.io
-https://tripperofmen.itch.io/berry-blast
-
-Just use this link, it leads a separate place where you can download the zip, if you don't want to download it straight from here
-
 ## Packaging for Windows
 
 Run these from the project folder:
