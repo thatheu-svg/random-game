@@ -15,7 +15,7 @@ public class Enemy {
     private static final double ICON_FRACTION = 0.6;   // icon size as a fraction of the circle's inner diameter
 
     // Each icon file is loaded once and shared by every enemy that uses it
-    private static final Map<String, BufferedImage> iconCache = new HashMap<>();
+    private static final Map<String, BufferedImage> imageCache = new HashMap<>();
 
     private double x;
     private double y;
@@ -30,6 +30,11 @@ public class Enemy {
     private long lastHitTime = 0;
     private double speedMultiplier = 1.0;   // 1.0 is normal; the aura lowers it
     private int auraHits = 0;                // how many times the aura has hit this enemy in a row
+    int deathAnimationFrames = 0;
+    boolean runDeathCounter = false;
+    // private final BufferedImage deathAnimationOne = loadImages("smoke1.png");
+    // private final BufferedImage deathAnimationTwo = loadImages("smoke2.png");
+    // private final BufferedImage deathAnimationThree = loadImages("smoke3.png");
 
     public Enemy(double x, double y, double speed, int startingHp, int size, int damage, Color color, Color outlineColor) {
         this.x = x;
@@ -44,13 +49,13 @@ public class Enemy {
     }
 
     // Subclasses call this from their constructor to pick an icon
-    protected final void setIcon(String path) {
-        this.icon = loadIcon(path);
+    protected final void setImages(String path) {
+        this.icon = loadImages(path);
     }
 
-    private static BufferedImage loadIcon(String path) {
-        if (iconCache.containsKey(path)) {
-            return iconCache.get(path);
+    public static BufferedImage loadImages(String path) {
+        if (imageCache.containsKey(path)) {
+            return imageCache.get(path);
         }
         BufferedImage image = null;
         try (InputStream in = Enemy.class.getResourceAsStream("/" + path)) {
@@ -65,7 +70,7 @@ public class Enemy {
         if (image == null) {
             System.err.println("Could not load icon: " + path);
         }
-        iconCache.put(path, image);
+        imageCache.put(path, image);
         return image;
     }
 
@@ -83,6 +88,10 @@ public class Enemy {
 
     public double getSpeed() {
         return speed;
+    }
+
+    public int getSize() {
+        return size;
     }
 
     public void setSpeedMultiplier(double speedMultiplier) {
@@ -154,7 +163,6 @@ public class Enemy {
             graphics.setColor(color);
             graphics.fillOval((int) (x + 2.5), (int) (y + 2.5), size - 5, size - 5);
         }
-
         drawIcon(graphics);
         drawHealthBar(graphics);
     }

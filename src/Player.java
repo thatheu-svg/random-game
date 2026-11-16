@@ -2,7 +2,6 @@ import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.MouseInfo;
@@ -20,7 +19,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -31,13 +29,13 @@ import javax.swing.*;
 
 // please don't forget to upload files to github alongside uploading the zip as a release
 // also update readme every time
-// make images for upgrade menu
-// TODO (milestone wave + aura):
-// 1. Milestone: when killCount hits a threshold (e.g. 100, then a later one), trigger the wave.
-// 2. Wave: kill all enemies, set framesUntilSpawn to ~900 (15 s), state stays PLAYING.
-// 3. Wave animation: expanding ring from the player's center (radius grows each frame, draws until it passes the screen edge).
-// 4. Unlock: waveCleared = true -> aura ability becomes available.
-// 5. Aura: follows the player, slows enemies inside it, damage scales with hits on the same enemy.
+// make images for upgrade menu (Currently in progress)
+// art made for bigger puddles, movefaster, more damage and more hp
+// begin work on making the images actually show up in the upgrade menu, probably should add something to upgrade.java to add the thing that will
+// individually give each upgrade the ability to call an image. Should preload it somewhere
+
+// Ideas for making this work: use the getimage() thing that already exists in upgrade.java and put them into each upgrade class in upgrades.java
+
 
 
 public class Player {
@@ -77,23 +75,14 @@ public class Player {
         private static final int MAX_STEPS_PER_TICK = 5;     // most game steps run in one check
 
         // Player
+        private final Stats stats = new Stats();
         private static final int PLAYER_SIZE = 48;
-        private static final int MOVE_AMOUNT = 8;
-        private int moveAmount = MOVE_AMOUNT;
         private static final Color PLAYER_COLOR = new Color(128, 130, 177);  // used if the sprite fails to load
-        private int playerMaxHp = 100;
-        private int moreHpNextTime = 0;
         private static final int HIT_COOLDOWN_FRAMES = 60;   // invincibility after being hit
         private static final int HEAL_COOLDOWN_FRAMES = 60;
-        private static final int HP_HEALED = 20;
-        private int hpHealed = HP_HEALED;
-        private int speedDuringSuper = moveAmount * 2;
+        private int speedDuringSuper = stats.moveAmount * 2;
         private static final int SUPER_CHARGED_START = 0;
-        private static final int SUPER_CHARGE_NEEDED_START = 1600;
-        private int superChargeNeeded = SUPER_CHARGE_NEEDED_START;
         private int superCharged = SUPER_CHARGED_START;
-        private static final int CHARGE_DRAINED_PER_FRAME = 20;
-        private int chargeDrainedPerFrame = CHARGE_DRAINED_PER_FRAME;
         private static final int SUPER_MIN_TO_START = 200;    // charge needed before the super can start
         private static final int SUPER_CHARGE_PER_HIT = 100;  // meter gained per hit
         private static final int HIT_GAIN_COOLDOWN = 20; // 60 frames or one second
@@ -104,41 +93,16 @@ public class Player {
         private static final double WASD_DURING_SUPER = 0.25; // 1.0 when not supering
         private int theta = 0;
         private static final int INCREASE_IN_THETA = 12;
+
         // Milestone wave + aura
-        private static final int AURA_KILL_MILESTONE = 1;        // kills needed to trigger the wave and unlock the aura
-        private boolean hasAuraAbility = false;
-        private static final int WAVE_SPEED = 40;                  // pixels the wave ring grows per frame
-        private static final int WAVE_SPAWN_PAUSE_FRAMES = 5 * FRAMES_PER_SECOND;   // no spawns for 15 seconds after the wave
-        private boolean waveActive = false;
-        private double waveRadius = 0;
-        private double waveCenterX = 0;
-        private double waveCenterY = 0;
-        private static final int AURA_RADIUS = 300;
-        private int auraRadius = AURA_RADIUS;
-        private static final int AURA_DURATION_FRAMES = 6 * FRAMES_PER_SECOND;
-        private static final int AURA_COOLDOWN_FRAMES = 15 * FRAMES_PER_SECOND;
-        private static final int AURA_FRAMES_PER_HIT = 30;         // frames between aura damage pulses
-        private static final int AURA_BASE_DAMAGE = 10;
-        private static final double AURA_DAMAGE_PER_HIT = 0.5;     // extra +50% of base damage per earlier hit on that enemy
-        private static final double AURA_SLOW_MULTIPLIER = 0.5;    // enemies inside the aura move at half speed
-        private boolean auraActive = false;
-        private int auraFramesLeft = 0;
-        private int auraCooldown = 0;                              // counts DOWN to 0
-        private static final int AURA_PULSE_FRAMES = 3 * FRAMES_PER_SECOND;   // one pulse ring grows from the player to the aura's edge in this long
-        private int auraPulseFrames = 0;
+        private static final int AURA_KILL_MILESTONE = 500;        // kills needed to trigger the wave and unlock the aura
+        private static final int WAVE_SPAWN_PAUSE_FRAMES = 5 * FRAMES_PER_SECOND;   // no spawns for 5 seconds after the wave
+        private final Wave wave = new Wave();
+        private final Aura aura = new Aura();
 
 
         // Puddles
-        private static final int RADIUS_FIRST = 48;
-        private int radius = RADIUS_FIRST;
-        private static final int DAMAGE_FIRST = 20;
-        private int damage = DAMAGE_FIRST;
-        private int moreDamageNextTime = 0;
         private static final int FRAMES_PER_HIT = 30;        // frames between damage pulses
-        private static final int PLACE_COOLDOWN_FRAMES = 30; // wait between placing puddles
-        private static final int MAX_RANGE = 500;            // max distance from player where a puddle can be placed
-        private int maxRange = MAX_RANGE;
-        private int placeCooldownFrames = PLACE_COOLDOWN_FRAMES;
         private static final int MAX_DELAY_FRAMES = 60;
         private static final int MIN_DELAY_FRAMES = 10;
         private static final double SUPER_PUDDLE_DAMAGE_MULTI = 0.5;
@@ -146,32 +110,7 @@ public class Player {
 
         // Upgrades
         private static final int BASE_XP_TO_UPGRADE = 3;  // kills needed before the extra from moreKillsToNextUpgrade
-        private static final int BIGGER_PUDDLES_MAX_BUYS = 2;
-        private int biggerPuddlesBought = 0;
-        private static final int MOVE_FASTER_MAX_BUYS = 3;
-        private int moveFastersBought = 0;
-        private boolean aftershockActive = false;
-        private static final int AFTERSHOCK_MAX_BUYS = 1;
-        private int aftershocksBought = 0;
-        private boolean thornsActive = false;
-        private static final int THORNS_MAX_BUYS = 1;
-        private int thornsBought = 0;
-        private boolean secondWindActive = false;
-        private static final int SECOND_WIND_MAX_BUYS = 1;
-        private int secondWindBought = 0;
         private boolean secondWindProcced = false;
-        private static final int FASTER_THROWS_MAX_BUYS = 3;
-        private int fasterThrowsBought = 0;
-        private static final int LONG_ARM_MAX_BUYS = 3;
-        private int longArmBought = 0;
-        private static final int ORB_PULL_RANGE = 400;
-        private int orbPullRange = ORB_PULL_RANGE;
-        private static final int MAGNET_MAX_BUYS = 3;
-        private int magnetBought = 0;
-        private int orbHeal = 0;                          // HP restored per orb collected
-        private static final int HEALING_ORBS_MAX_BUYS = 3;
-        private int healingOrbsBought = 0;
-
         // Enemy
         private static final int MAX_ENEMIES = 30;
         private static final int START_SPAWN_GAP = 300;      // 5 seconds between spawns at the start
@@ -188,10 +127,10 @@ public class Player {
 
         // Things in the world
         private final List<Enemy> enemies = new ArrayList<>();
+        private final List<DeadEnemy> deadEnemies = new ArrayList<>();
         private final List<Puddle> puddles = new ArrayList<>();
         private final List<Orb> orbs = new ArrayList<>();
         private final List<Upgrade> allUpgrades = new ArrayList<>();
-        private final List<Upgrade> menuChoices = new ArrayList<>();
         private final Set<Integer> pressedKeys = new HashSet<>(); 
         private final Random random = new Random();
 
@@ -199,19 +138,13 @@ public class Player {
         private final BufferedImage playerSprite = loadSprite("player.png");
         private final BufferedImage puddleSprite = loadSprite("galaxy_puddle.png");
 
-        // Upgrade menu layout
-        private static final int MENU_WIDTH = 960;
-        private static final int MENU_HEIGHT = 540;
-        private static final int MENU_PAD = 24;
-        private static final int CARD_GAP = 20;
-        private static final int MENU_TITLE_SPACE = 60;
-        private static final int CARD_IMAGE_SIZE = 150;
-        private int hoveredCard = -1;
+        // The upgrade menu (draws its own cards and finds which one is clicked)
+        private final UpgradeMenu menu = new UpgradeMenu();
 
         // Player state
         private double playerX = PANEL_WIDTH / 2;
         private double playerY = PANEL_HEIGHT / 2;
-        private int playerHp = playerMaxHp;
+        private int playerHp = stats.playerMaxHp;
         private int killCount = KILL_COUNT_START;
         private enum GameState {
             PLAYING, PAUSED, UPGRADE_MENU, GAME_OVER
@@ -248,7 +181,7 @@ public class Player {
                 @Override
                 public void mousePressed(MouseEvent event) {
                     if (state == GameState.UPGRADE_MENU) {
-                        int card = cardAt(event.getX(), event.getY());
+                        int card = menu.cardAt(event.getX(), event.getY(), getWidth(), getHeight());
                         if (card >= 0) chooseUpgrade(card);
                         return;
                     }
@@ -261,20 +194,20 @@ public class Player {
                     double dy = targetY - playerCenterY;
                     double distance = Math.hypot(dx, dy);
 
-                    double fraction = Math.min(distance, maxRange) / maxRange;
+                    double fraction = Math.min(distance, stats.maxRange) / stats.maxRange;
                     int delay = MIN_DELAY_FRAMES + (int) (fraction * (MAX_DELAY_FRAMES - MIN_DELAY_FRAMES));
                     if (state != GameState.PLAYING) return;
                     if (isUsingSuper == true) return;
                     if (placeCooldown > 0) return;
-                    if (distance > maxRange) {
-                        targetX = playerCenterX + dx * (maxRange / distance);
-                        targetY = playerCenterY + dy * (maxRange / distance);
+                    if (distance > stats.maxRange) {
+                        targetX = playerCenterX + dx * (stats.maxRange / distance);
+                        targetY = playerCenterY + dy * (stats.maxRange / distance);
                     }
                     
                     Puddle puddle = new Puddle(
-                        targetX, targetY, radius, damage, 0, delay);
+                        targetX, targetY, stats.radius, stats.damage, 0, delay);
                     puddles.add(puddle);
-                    placeCooldown = placeCooldownFrames;
+                    placeCooldown = stats.placeCooldownFrames;
                     }
             });
 
@@ -283,30 +216,14 @@ public class Player {
                 @Override
                 public void mouseMoved(MouseEvent event) {
                     if (state != GameState.UPGRADE_MENU) return;
-                    int card = cardAt(event.getX(), event.getY());
-                    if (card != hoveredCard) {
-                        hoveredCard = card;
+                    if (menu.updateHover(event.getX(), event.getY(), getWidth(), getHeight())) {
                         repaint();
                     }
                 }
             });
 
-            allUpgrades.add(new BiggerPuddles());
-            allUpgrades.add(new MoveFaster());
-            allUpgrades.add(new MoreDamage());
-            allUpgrades.add(new MorePlayerHp());
-            allUpgrades.add(new LessSuperChargeUsed());
-            allUpgrades.add(new HoldMoreSuper());
-            allUpgrades.add(new HealYourselfMore());
-            allUpgrades.add(new Aftershock());
-            allUpgrades.add(new Thorns());
-            allUpgrades.add(new SecondWind());
-            allUpgrades.add(new FasterThrows());
-            allUpgrades.add(new LongArm());
-            allUpgrades.add(new Magnet());
-            allUpgrades.add(new HealingOrbs());
-
             // Start the game loop
+            buildUpgrades();
             new Timer(TICK_CHECK_MS, e -> tick()).start();
         }
 
@@ -366,22 +283,12 @@ public class Player {
 
             // E casts the aura once it has been unlocked
             if (pressed && keyCode == KeyEvent.VK_E && state == GameState.PLAYING) {
-                castAura();
+                aura.cast();
             }
 
             // Enter opens the upgrade menu once enough XP is collected
             if (pressed && keyCode == KeyEvent.VK_ENTER && xpToUpgrade <= 0 && state == GameState.PLAYING) {
-                List<Upgrade> shuffled = new ArrayList<>();
-                for (Upgrade upgrade : allUpgrades) {
-                    if (upgrade.isAvailable()) {
-                        shuffled.add(upgrade);
-                    }
-                }
-
-                if (!shuffled.isEmpty()) {
-                    Collections.shuffle(shuffled, random);
-                    menuChoices.clear();
-                    menuChoices.addAll(shuffled.subList(0, Math.min(3, shuffled.size())));
+                if (menu.open(allUpgrades, random)) {
                     state = GameState.UPGRADE_MENU;
                     repaint();
                 }
@@ -399,6 +306,7 @@ public class Player {
 
         private void updateSuper() {
             boolean held = pressedKeys.contains(KeyEvent.VK_SPACE);
+            speedDuringSuper = stats.moveAmount * 2;
 
             // starts when Space is held with enough charge, ends when released or empty
             if (!isUsingSuper && held && superCharged >= SUPER_MIN_TO_START) {
@@ -424,13 +332,14 @@ public class Player {
             playerX = Math.max(0, Math.min(playerX, getWidth() - PLAYER_SIZE));
             playerY = Math.max(0, Math.min(playerY, getHeight() - PLAYER_SIZE));
 
-            superCharged = Math.max(superCharged - chargeDrainedPerFrame, 0);
+            superCharged = Math.max(superCharged - stats.chargeDrainedPerFrame, 0);
         }
         // Applies the chosen upgrade, closes the menu, and sets the next kill requirement
         private void chooseUpgrade(int index) {
-            if (index >= menuChoices.size()) return;
-            menuChoices.get(index).apply();
-            hoveredCard = -1;
+            Upgrade chosen = menu.get(index);
+            if (chosen == null) return;
+            chosen.apply();
+            menu.clearHover();
             xpToUpgrade = BASE_XP_TO_UPGRADE + (int) moreXpToNextUpgrade;
             startingXpToUpgrade = BASE_XP_TO_UPGRADE + (int) moreXpToNextUpgrade;
             state = GameState.PLAYING;
@@ -453,14 +362,17 @@ public class Player {
             } else {
                 theta = 0;
             }
+            for (DeadEnemy deadEnemy : deadEnemies) {
+                deadEnemy.tickDuration();
+            }
             handleSpawning();
             double startCx = playerX + PLAYER_SIZE / 2.0;
             double startCy = playerY + PLAYER_SIZE / 2.0;
             updateMovement();
             updateSuper();
-            updateAuraTimers();
-            auraAffectsEnemies();
-            updateWave();
+            aura.updateTimers(stats.auraCooldownFrames);
+            aura.affectEnemies(enemies, playerX, playerY, PLAYER_SIZE, frameCount, stats.auraSlowMultiplier);
+            wave.update(getWidth(), getHeight());
             if (isUsingSuper) {
                 layTrail(startCx, startCy, playerX + PLAYER_SIZE / 2.0, playerY + PLAYER_SIZE / 2.0);
             }
@@ -472,14 +384,14 @@ public class Player {
                 enemy.moveToward(playerCenterX, playerCenterY);
                 if (enemy.isTouchingPlayer(playerX, playerY, PLAYER_SIZE) && hitCooldown >= HIT_COOLDOWN_FRAMES) {
                     damagePlayer(enemy.getDamage());
-                    if (thornsActive) {
-                        enemy.takeDamage(damage);
+                    if (stats.thornsActive) {
+                        enemy.takeDamage(stats.damage);
                     }
                 }
             }
 
             for (Orb orb : orbs) {
-                orb.moveToward(playerCenterX, playerCenterY, orbPullRange);
+                orb.moveToward(playerCenterX, playerCenterY, stats.orbPullRange);
                 if (orb.isTouchingPlayer(playerCenterX, playerCenterY, PLAYER_SIZE)) {
                     collectOrb(orb);
                 }
@@ -501,14 +413,19 @@ public class Player {
                 if (puddle.isTouchingPlayer(playerCenterX, playerCenterY, PLAYER_SIZE)
                         && healCooldown == HEAL_COOLDOWN_FRAMES
                         && puddle.delay == 0
-                        && playerHp < playerMaxHp) {
-                    healPlayer(hpHealed);
+                        && playerHp < stats.playerMaxHp) {
+                    healPlayer(stats.hpHealed);
                 }
             }
             // Remove dead enemies and expired puddles, also counts kills for now
             int enemiesBefore = enemies.size();
             for (Enemy enemy : enemies) {
                 if (enemy.isDead()) {
+                    int deathX = enemy.getPosX();
+                    int deathY = enemy.getPosY();
+                    int duration = 0;
+                        DeadEnemy deadEnemy = new DeadEnemy(deathX, deathY, enemy.getSize(), duration);
+                        deadEnemies.add(deadEnemy);
                 for (int i = 1; i < 2; i++) {
                     Orb orb = new Orb(enemy.getPosX(), enemy.getPosY(), 30, 10, 1, false);
                     orbs.add(orb);
@@ -520,7 +437,7 @@ public class Player {
             killCount += kills;
             checkMilestoneWave();
             for (Puddle puddle : puddles) {
-                if (aftershockActive && puddle.madeBySuper() == false && puddle.isExpired()) {
+                if (stats.aftershockActive && puddle.madeBySuper() == false && puddle.isExpired()) {
                     int aftershockDamage = puddle.damage;
                     int aftershockRadius = puddle.radius;
                     puddle.radius = (int) (puddle.radius * 1.5);
@@ -531,7 +448,8 @@ public class Player {
                 }
             }
             puddles.removeIf(Puddle::isExpired);
-            repaint();
+            deadEnemies.removeIf(DeadEnemy::durationExpired);
+            repaint(); 
         }
 
         // Called often by the timer; runs as many game steps as real time requires
@@ -564,10 +482,10 @@ public class Player {
             double dx = 0;
             double dy = 0;
 
-            if (pressedKeys.contains(KeyEvent.VK_W)) dy -= moveAmount;
-            if (pressedKeys.contains(KeyEvent.VK_S)) dy += moveAmount;
-            if (pressedKeys.contains(KeyEvent.VK_A)) dx -= moveAmount;
-            if (pressedKeys.contains(KeyEvent.VK_D)) dx += moveAmount;
+            if (pressedKeys.contains(KeyEvent.VK_W)) dy -= stats.moveAmount;
+            if (pressedKeys.contains(KeyEvent.VK_S)) dy += stats.moveAmount;
+            if (pressedKeys.contains(KeyEvent.VK_A)) dx -= stats.moveAmount;
+            if (pressedKeys.contains(KeyEvent.VK_D)) dx += stats.moveAmount;
 
             if (dx != 0 && dy != 0) {
                 dx *= Math.sqrt(0.5);
@@ -587,15 +505,15 @@ public class Player {
             orb.collected = true;
             xpToUpgrade -= orb.xp;
             moreXpToNextUpgrade += orb.xp / 2.0;
-            playerHp = Math.min(playerHp + orbHeal, playerMaxHp);
+            playerHp = Math.min(playerHp + stats.orbHeal, stats.playerMaxHp);
         }
 
         // Lowers the player's HP and starts the invincibility window
         private void damagePlayer(int amount) {
             playerHp = playerHp - amount;
             hitCooldown = 0;
-            if (playerHp <= 0 && secondWindActive && !secondWindProcced) {
-                playerHp = playerMaxHp / 2;
+            if (playerHp <= 0 && stats.secondWindActive && !secondWindProcced) {
+                playerHp = stats.playerMaxHp / 2;
                 hitCooldown = -240;
                 secondWindProcced = true;
             }
@@ -606,81 +524,47 @@ public class Player {
 
         private void healPlayer(int amount) {
             playerHp = playerHp + amount;
-            playerHp = Math.min(playerHp, playerMaxHp);
+            playerHp = Math.min(playerHp, stats.playerMaxHp);
             healCooldown = 0;
         }
 
         // At the kill milestone: a wave kills every enemy on screen, spawning pauses, and the aura unlocks
         private void checkMilestoneWave() {
-            if (hasAuraAbility || killCount < AURA_KILL_MILESTONE) return;
+            if (aura.isUnlocked() || killCount < AURA_KILL_MILESTONE) return;
 
-            hasAuraAbility = true;
+            aura.unlock();
             for (Enemy enemy : enemies) {
                 enemy.takeDamage(100000);   // they die and are cleaned up (orbs, kills) next frame
             }
             framesUntilSpawn = WAVE_SPAWN_PAUSE_FRAMES;
-            waveActive = true;
-            waveRadius = 0;
-            waveCenterX = playerX + PLAYER_SIZE / 2.0;
-            waveCenterY = playerY + PLAYER_SIZE / 2.0;
+            wave.start(playerX + PLAYER_SIZE / 2.0, playerY + PLAYER_SIZE / 2.0);
         }
 
-        // Grows the wave ring until it is past the whole screen
-        private void updateWave() {
-            if (!waveActive) return;
-            waveRadius += WAVE_SPEED;
-            if (waveRadius > Math.hypot(getWidth(), getHeight())) {
-                waveActive = false;
-            }
-        }
-
-        // Starts the aura if it is unlocked and off cooldown
-        private void castAura() {
-            if (!hasAuraAbility || auraActive || auraCooldown > 0) return;
-            auraActive = true;
-            auraFramesLeft = AURA_DURATION_FRAMES;
-            auraPulseFrames = 0;
-        }
-
-        // Counts the aura down while it is on, then counts its cooldown down
-        private void updateAuraTimers() {
-            if (auraActive) {
-                auraPulseFrames = (auraPulseFrames + 1) % AURA_PULSE_FRAMES;   // wraps back to 0, so the pulse restarts
-                auraFramesLeft--;
-                if (auraFramesLeft <= 0) {
-                    auraActive = false;
-                    auraCooldown = AURA_COOLDOWN_FRAMES;
-                }
-            } else if (auraCooldown > 0) {
-                auraCooldown--;
-            }
-        }
-
-        // Enemies inside the aura are slowed and hit on a schedule (more damage for each earlier hit on them).
-        // Enemies outside it go back to normal speed and lose their hit count.
-        private void auraAffectsEnemies() {
-            for (Enemy enemy : enemies) {
-                if (auraActive && enemy.isInAura(playerX, playerY, PLAYER_SIZE, auraRadius)) {
-                    enemy.setSpeedMultiplier(AURA_SLOW_MULTIPLIER);
-                    if (frameCount % AURA_FRAMES_PER_HIT == 0) {
-                        enemy.addAuraHit();
-                        double scaled = AURA_BASE_DAMAGE * (1 + enemy.getAuraHits() * AURA_DAMAGE_PER_HIT);
-                        enemy.takeDamage((int) scaled);
-                    }
-                } else {
-                    enemy.setSpeedMultiplier(1.0);
-                    enemy.resetAuraHits();
-                }
-            }
+        private void buildUpgrades() {
+            allUpgrades.clear();
+            allUpgrades.add(new Upgrades.BiggerPuddles(stats));
+            allUpgrades.add(new Upgrades.MoveFaster(stats));
+            allUpgrades.add(new Upgrades.MoreDamage(stats));
+            allUpgrades.add(new Upgrades.MorePlayerHp(stats));
+            allUpgrades.add(new Upgrades.LessSuperChargeUsed(stats));
+            allUpgrades.add(new Upgrades.HoldMoreSuper(stats));
+            allUpgrades.add(new Upgrades.HealYourselfMore(stats));
+            allUpgrades.add(new Upgrades.Aftershock(stats));
+            allUpgrades.add(new Upgrades.Thorns(stats));
+            allUpgrades.add(new Upgrades.SecondWind(stats));
+            allUpgrades.add(new Upgrades.FasterThrows(stats));
+            allUpgrades.add(new Upgrades.LongArm(stats));
+            allUpgrades.add(new Upgrades.Magnet(stats));
+            allUpgrades.add(new Upgrades.HealingOrbs(stats));
+            allUpgrades.add(new Upgrades.AuraMoreOften(stats));
+            allUpgrades.add(new Upgrades.AuraSlowsMore(stats));
         }
 
         // Puts everything back to its starting values
         private void restartGame() {
-            playerMaxHp = 100;
-            moreHpNextTime = 0;
-            moveAmount = MOVE_AMOUNT;
-            speedDuringSuper = MOVE_AMOUNT * 2;
-            playerHp = playerMaxHp;
+            stats.reset();
+            speedDuringSuper = stats.moveAmount * 2;
+            playerHp = stats.playerMaxHp;
             playerX = PANEL_WIDTH / 2;
             playerY = PANEL_HEIGHT / 2;
             frameCount = 0;
@@ -689,49 +573,23 @@ public class Player {
             placeCooldown = 0;
             healCooldown = HEAL_COOLDOWN_FRAMES;
             killCount = KILL_COUNT_START;
-            radius = RADIUS_FIRST;
-            damage = DAMAGE_FIRST;
-            moreDamageNextTime = 0;
-            hpHealed = HP_HEALED;
             moreXpToNextUpgrade = 0;
             xpToUpgrade = BASE_XP_TO_UPGRADE;
             startingXpToUpgrade = xpToUpgrade;
             state = GameState.PLAYING;
-            biggerPuddlesBought = 0;
-            moveFastersBought = 0;
-            superChargeNeeded = SUPER_CHARGE_NEEDED_START;
             superCharged = SUPER_CHARGED_START;
-            chargeDrainedPerFrame = CHARGE_DRAINED_PER_FRAME;
             hits = 0;
             hitGainCooldown = HIT_GAIN_COOLDOWN;
             isUsingSuper = false;
-            aftershockActive = false;
-            thornsActive = false;
             superDistanceSincePuddle = 0;
-            aftershocksBought = 0;
-            thornsBought = 0;
-            secondWindActive = false;
-            secondWindBought = 0;
             secondWindProcced = false;
-            maxRange = MAX_RANGE;
-            placeCooldownFrames = PLACE_COOLDOWN_FRAMES;
-            fasterThrowsBought = 0;
-            longArmBought = 0;
-            orbPullRange = ORB_PULL_RANGE;
-            magnetBought = 0;
-            orbHeal = 0;
-            healingOrbsBought = 0;
             theta = 0;
-            hasAuraAbility = false;
-            waveActive = false;
-            waveRadius = 0;
-            auraRadius = AURA_RADIUS;
-            auraActive = false;
-            auraFramesLeft = 0;
-            auraCooldown = 0;
-            auraPulseFrames = 0;
+            wave.reset();
+            aura.reset();
+            buildUpgrades();
             enemies.clear();
             puddles.clear();
+            deadEnemies.clear();
             orbs.clear();
             // keep adding stuff that needs to be reset when you die
         }
@@ -745,30 +603,12 @@ public class Player {
                     enemy.takeDamage(puddle.damage);
                     hits = hits + 1;
                     if (hitGainCooldown <= 0) {
-                        superCharged = Math.min(superChargeNeeded, superCharged + SUPER_CHARGE_PER_HIT);
+                        superCharged = Math.min(stats.superChargeNeeded, superCharged + SUPER_CHARGE_PER_HIT);
                         hitGainCooldown = HIT_GAIN_COOLDOWN;
                     }
                 }
             }
         }
-
-                // Drops puddles along the path from the old position to the new one, one radius apart
-        // private void layTrail(double oldCx, double oldCy, double newCx, double newCy) {
-        //     double traveled = Math.hypot(newCx - oldCx, newCy - oldCy);
-        //     if (traveled == 0) return;
-        //     double dirX = (newCx - oldCx) / traveled;
-        //     double dirY = (newCy - oldCy) / traveled;
-        //     Puddle puddle = new Puddle(px, targetY, radius, damage, 0, delay);
-        //     puddle.madeBySuper = true;
-
-        //     superDistanceSincePuddle += traveled;
-        //     while (superDistanceSincePuddle >= radius) {
-        //         superDistanceSincePuddle -= radius;
-        //         double px = newCx - dirX * superDistanceSincePuddle;
-        //         double py = newCy - dirY * superDistanceSincePuddle;
-        //         puddles.add(new Puddle(px, py, (int) (radius * SUPER_PUDDLE_RADIUS_MULTI), (int) (damage * SUPER_PUDDLE_DAMAGE_MULTI), 0, 1));
-        //     }
-        // }
 
         // Drops puddles along the path from the old position to the new one, one radius apart
         private void layTrail(double oldCx, double oldCy, double newCx, double newCy) {
@@ -778,312 +618,17 @@ public class Player {
             double dirY = (newCy - oldCy) / traveled;
 
             superDistanceSincePuddle += traveled;
-            while (superDistanceSincePuddle >= radius) {
-                superDistanceSincePuddle -= radius;
+            while (superDistanceSincePuddle >= stats.radius) {
+                superDistanceSincePuddle -= stats.radius;
                 double px = newCx - dirX * superDistanceSincePuddle;
                 double py = newCy - dirY * superDistanceSincePuddle;
 
                 Puddle trailPuddle = new Puddle(px, py,
-                    (int) (radius * SUPER_PUDDLE_RADIUS_MULTI),
-                    (int) (damage * SUPER_PUDDLE_DAMAGE_MULTI),
+                    (int) (stats.radius * SUPER_PUDDLE_RADIUS_MULTI),
+                    (int) (stats.damage * SUPER_PUDDLE_DAMAGE_MULTI),
                     0, 1);                      // delay 1 so the landing hit fires
                 trailPuddle.madeBySuper = true;  // mark this puddle as coming from the super
                 puddles.add(trailPuddle);
-            }
-        }
-
-        // upgrades
-
-        private class BiggerPuddles implements Upgrade {
-            @Override
-            public String getName() {
-                return "Bigger Puddles";
-            }
-
-            @Override
-            public String getDescription() {
-                return "Puddles get +10 radius. Can be bought twice.";
-            }
-
-            @Override
-            public void apply() {
-                radius += 10;
-                biggerPuddlesBought++;
-            }
-
-            @Override
-            public boolean isAvailable() {
-                return biggerPuddlesBought < BIGGER_PUDDLES_MAX_BUYS;
-            }
-        }
-
-        private class MoveFaster implements Upgrade {
-            @Override
-            public String getName() {
-                return "Fleet Feet";
-            }
-
-            @Override
-            public String getDescription() {
-                return "+2 movement speed. Can be bought 3 times.";
-            }
-
-            @Override
-            public void apply() {
-                moveAmount += 2;
-                moveFastersBought++;
-            }
-
-            @Override
-            public boolean isAvailable() {
-                return moveFastersBought < MOVE_FASTER_MAX_BUYS;
-            }
-        }
-
-        private class MoreDamage implements Upgrade {
-            @Override
-            public String getName() {
-                return "More Damage";
-            }
-
-            @Override
-            public String getDescription() {
-                return "Puddles deal +5 damage. Each purchase adds +5 more than the last.";
-            }
-
-            @Override
-            public void apply() {
-                damage += 5 + moreDamageNextTime;
-                moreDamageNextTime += 5;
-            }
-        }
-
-        private class MorePlayerHp implements Upgrade {
-            @Override
-            public String getName() {
-                return "Tougher Berry";
-            }
-
-            @Override
-            public String getDescription() {
-                return "+20 max HP. Each purchase adds +10 more than the last.";
-            }
-
-            @Override
-            public void apply() {
-                playerMaxHp += 20 + moreHpNextTime;
-                moreHpNextTime += 10;
-            }
-        }
-
-        private class LessSuperChargeUsed implements Upgrade {
-            @Override
-            public String getName() {
-                return "Efficient Super";
-            }
-
-            @Override
-            public String getDescription() {
-                return "Your super drains 10% less charge.";
-            }
-
-            @Override
-            public void apply() {
-                chargeDrainedPerFrame *= 0.9;
-            }
-        }
-
-        private class HoldMoreSuper implements Upgrade {
-            @Override
-            public String getName() {
-                return "Bigger Super Tank";
-            }
-
-            @Override
-            public String getDescription() {
-                return "Your super meter holds 10% more charge.";
-            }
-
-            @Override
-            public void apply() {
-                superChargeNeeded *= 1.1;
-            }
-        }
-
-        private class HealYourselfMore implements Upgrade {
-            @Override
-            public String getName() {
-                return "Puddle Healing";
-            }
-
-            @Override
-            public String getDescription() {
-                return "Standing in puddles heals 10% more.";
-            }
-
-            @Override
-            public void apply() {
-                hpHealed *= 1.1;
-            }
-        }
-
-        private class Aftershock implements Upgrade {
-            @Override 
-            public String getName() {
-                return "Aftershock";
-            }
-
-            @Override
-            public String getDescription() {
-                return "Puddles explode when they expire, dealing half damage in a wider area.";
-            }
-
-            @Override 
-            public void apply() {
-                aftershockActive = true;
-                aftershocksBought++;
-            }
-
-            @Override
-            public boolean isAvailable() {
-                return aftershocksBought < AFTERSHOCK_MAX_BUYS;
-            }
-        }
-
-        private class Thorns implements Upgrade {
-            @Override
-            public String getName() {
-                return "Thorns";
-            }
-
-            @Override
-            public String getDescription() {
-                return "Enemies that hit you take damage equal to your puddle damage.";
-            }
-
-            @Override 
-            public void apply() {
-                thornsActive = true;
-                thornsBought++;
-            }
-
-            @Override
-            public boolean isAvailable() {
-                return thornsBought < THORNS_MAX_BUYS;
-            }
-        }
-        private class SecondWind implements Upgrade {
-            @Override
-            public String getName() {
-                return "Second Wind";
-            }
-
-            @Override
-            public String getDescription() {
-                return "Once per run, survive a lethal hit at half HP and become immune for 5 seconds.";
-            }
-
-            @Override 
-            public void apply() {
-                secondWindActive = true;
-                secondWindBought++;
-            }
-
-            @Override
-            public boolean isAvailable() {
-                return secondWindBought < SECOND_WIND_MAX_BUYS;
-            }
-        }
-
-        private class FasterThrows implements Upgrade {
-            @Override
-            public String getName() {
-                return "Faster Throws";
-            }
-
-            @Override
-            public String getDescription() {
-                return "Puddles can be placed 20% faster. Can be bought 3 times.";
-            }
-
-            @Override
-            public void apply() {
-                placeCooldownFrames = Math.max(8, (int) (placeCooldownFrames * 0.8));
-                fasterThrowsBought++;
-            }
-
-            @Override
-            public boolean isAvailable() {
-                return fasterThrowsBought < FASTER_THROWS_MAX_BUYS;
-            }
-        }
-
-        private class LongArm implements Upgrade {
-            @Override
-            public String getName() {
-                return "Long Arm";
-            }
-
-            @Override
-            public String getDescription() {
-                return "Puddles can be placed +80 pixels farther away. Can be bought 3 times.";
-            }
-
-            @Override
-            public void apply() {
-                maxRange += 80;
-                longArmBought++;
-            }
-
-            @Override
-            public boolean isAvailable() {
-                return longArmBought < LONG_ARM_MAX_BUYS;
-            }
-        }
-
-        private class Magnet implements Upgrade {
-            @Override
-            public String getName() {
-                return "Magnet";
-            }
-
-            @Override
-            public String getDescription() {
-                return "XP orbs are pulled toward you from +100 pixels farther away. Can be bought 3 times.";
-            }
-
-            @Override
-            public void apply() {
-                orbPullRange += 100;
-                magnetBought++;
-            }
-
-            @Override
-            public boolean isAvailable() {
-                return magnetBought < MAGNET_MAX_BUYS;
-            }
-        }
-
-        private class HealingOrbs implements Upgrade {
-            @Override
-            public String getName() {
-                return "Healing Orbs";
-            }
-
-            @Override
-            public String getDescription() {
-                return "Collecting an XP orb heals +5 HP. Can be bought 3 times.";
-            }
-
-            @Override
-            public void apply() {
-                orbHeal += 5;
-                healingOrbsBought++;
-            }
-
-            @Override
-            public boolean isAvailable() {
-                return healingOrbsBought < HEALING_ORBS_MAX_BUYS;
             }
         }
 
@@ -1147,45 +692,34 @@ public class Player {
             super.paintComponent(graphics);
 
             drawPuddles(graphics);
-            drawAura(graphics);
+            aura.draw(graphics, playerX, playerY, PLAYER_SIZE);
             drawOrb(graphics);
             drawPlayer(graphics);
             drawSuperRing(graphics);
             for (Enemy enemy : enemies) {
                 enemy.draw(graphics);
             }
+            for (DeadEnemy deadEnemy : deadEnemies) {
+                deadEnemy.drawDeathAnimation(graphics);
+            }
             drawPlayerHealthBar(graphics);
             drawXpBar(graphics);
             drawKillCount(graphics);
             drawHits(graphics);
-            drawAuraStatus(graphics);
-            drawWave(graphics);
+            aura.drawStatus(graphics);
+            wave.draw(graphics);
 
             switch (state) {
                 case PAUSED -> drawGamePaused(graphics);
-                case UPGRADE_MENU -> drawMenu(graphics);
+                case UPGRADE_MENU -> menu.draw(graphics, getWidth(), getHeight());
                 case GAME_OVER -> drawGameOver(graphics);
                 case PLAYING -> {}
             }
         }
 
-        // Puddles are centered on their position, so the corner is one radius up and left
         private void drawPuddles(Graphics graphics) {
             for (Puddle puddle : puddles) {
-                int left = (int) (puddle.x - puddle.radius);
-                int top = (int) (puddle.y - puddle.radius);
-                int diameter = puddle.radius * 2;
-
-                if (puddle.delay > 0) {
-                    // still in the air: draw a warning outline
-                    graphics.setColor(new Color(120, 180, 255));
-                    graphics.drawOval(left, top, diameter, diameter);
-                } else if (puddleSprite != null) {
-                    graphics.drawImage(puddleSprite, left, top, diameter, diameter, null);
-                } else {
-                    graphics.setColor(new Color(60, 120, 255, 120));
-                    graphics.fillOval(left, top, diameter, diameter);
-                }
+                puddle.draw(graphics, puddleSprite);
             }
         }
 
@@ -1204,11 +738,7 @@ public class Player {
 
         private void drawOrb(Graphics graphics) {
             for (Orb orb : orbs) {
-                int diameter = orb.radius * 2;
-                int left = (int) (orb.orbX - orb.radius);
-                int top = (int) (orb.orbY - orb.radius);
-                graphics.setColor(Color.CYAN);
-                graphics.fillOval(left, top, diameter, diameter);
+                orb.draw(graphics);
             }
         }
 
@@ -1222,11 +752,11 @@ public class Player {
 
             graphics.setColor(new Color(60, 180, 75));
             graphics.fillRect(barLeft, (int) playerY - 10,
-                (int) (barWidth * Math.max(playerHp, 0) / (double) playerMaxHp), 5);
+                (int) (barWidth * Math.max(playerHp, 0) / (double) stats.playerMaxHp), 5);
 
             graphics.setColor(Color.WHITE);
             graphics.setFont(new Font("Arial", Font.BOLD, 10));
-            graphics.drawString(" " + Math.max(playerHp, 0) + " / " + playerMaxHp, barLeft + 9, (int) playerY - 11);
+            graphics.drawString(" " + Math.max(playerHp, 0) + " / " + stats.playerMaxHp, barLeft + 9, (int) playerY - 11);
         }
 
         // Kill count, kills needed for the next upgrade, and the Enter prompt when one is ready
@@ -1264,66 +794,12 @@ public class Player {
         Graphics2D g2 = (Graphics2D) graphics;
         int pad = 6;
         int size = PLAYER_SIZE + pad * 2;
-        int sweep = (int) (360.0 * superCharged / superChargeNeeded);
+        int sweep = (int) (360.0 * superCharged / stats.superChargeNeeded);
 
         g2.setColor(Color.YELLOW);
         g2.setStroke(new BasicStroke(4));
         g2.drawArc((int) playerX - pad, (int) playerY - pad, size, size, 90, -sweep);   // clockwise from the top
         g2.setStroke(new BasicStroke(1));   // restore so later drawing isn't thick
-        }
-
-        // Translucent circle around the player while the aura is on
-        private void drawAura(Graphics graphics) {
-            if (!auraActive) return;
-            Graphics2D g2 = (Graphics2D) graphics;
-            int centerX = (int) (playerX + PLAYER_SIZE / 2.0);
-            int centerY = (int) (playerY + PLAYER_SIZE / 2.0);
-
-            g2.setColor(new Color(160, 80, 255, 60));
-            g2.fillOval(centerX - auraRadius, centerY - auraRadius, auraRadius * 2, auraRadius * 2);
-            g2.setColor(new Color(190, 120, 255, 200));
-            g2.setStroke(new BasicStroke(3));
-            g2.drawOval(centerX - auraRadius, centerY - auraRadius, auraRadius * 2, auraRadius * 2);
-
-            // thin blue pulse: grows from the player out to the aura's edge, fading as it goes
-            double progress = auraPulseFrames / (double) AURA_PULSE_FRAMES;
-            int pulseRadius = (int) (auraRadius * progress);
-            int alpha = (int) (255 * (1.0 - progress));
-            g2.setColor(new Color(90, 170, 255, Math.max(alpha, 0)));
-            g2.setStroke(new BasicStroke(2));
-            g2.drawOval(centerX - pulseRadius, centerY - pulseRadius, pulseRadius * 2, pulseRadius * 2);
-            g2.setStroke(new BasicStroke(1));
-        }
-
-        // Expanding ring from where the milestone wave fired
-        private void drawWave(Graphics graphics) {
-            if (!waveActive) return;
-            Graphics2D g2 = (Graphics2D) graphics;
-            int r = (int) waveRadius;
-
-            g2.setColor(new Color(255, 255, 255, 220));
-            g2.setStroke(new BasicStroke(10));
-            g2.drawOval((int) waveCenterX - r, (int) waveCenterY - r, r * 2, r * 2);
-            g2.setColor(new Color(120, 200, 255, 150));
-            g2.setStroke(new BasicStroke(24));
-            g2.drawOval((int) waveCenterX - r, (int) waveCenterY - r, r * 2, r * 2);
-            g2.setStroke(new BasicStroke(1));
-        }
-
-        // Aura status text under the kill counter
-        private void drawAuraStatus(Graphics graphics) {
-            if (!hasAuraAbility) return;
-            graphics.setFont(new Font("Arial", Font.BOLD, 24));
-            if (auraActive) {
-                graphics.setColor(new Color(190, 120, 255));
-                graphics.drawString("Aura: " + (auraFramesLeft / FRAMES_PER_SECOND + 1) + "s left", 6, 102);
-            } else if (auraCooldown > 0) {
-                graphics.setColor(Color.GRAY);
-                graphics.drawString("Aura recharging: " + (auraCooldown / FRAMES_PER_SECOND + 1) + "s", 6, 102);
-            } else {
-                graphics.setColor(Color.YELLOW);
-                graphics.drawString("Aura ready: press E", 6, 102);
-            }
         }
 
         private void drawGamePaused(Graphics graphics) {
@@ -1338,96 +814,5 @@ public class Player {
             graphics.drawString("It's genuinely so over...", getWidth() / 2 - 200, getHeight() / 2);
         }
 
-        // Where card i sits on screen (used for both drawing and mouse clicks)
-        private Rectangle cardBounds(int i) {
-            int menuLeft = (getWidth() - MENU_WIDTH) / 2;
-            int menuTop = (getHeight() - MENU_HEIGHT) / 2;
-            int cardWidth = (MENU_WIDTH - 2 * MENU_PAD - 2 * CARD_GAP) / 3;
-            int cardHeight = MENU_HEIGHT - 2 * MENU_PAD - MENU_TITLE_SPACE;
-            return new Rectangle(menuLeft + MENU_PAD + i * (cardWidth + CARD_GAP),
-                    menuTop + MENU_PAD + MENU_TITLE_SPACE, cardWidth, cardHeight);
-        }
-
-        // Which card is under (x, y), or -1 if none
-        private int cardAt(int x, int y) {
-            for (int i = 0; i < menuChoices.size(); i++) {
-                if (cardBounds(i).contains(x, y)) return i;
-            }
-            return -1;
-        }
-
-        // Draws text wrapped to maxWidth, returns the y for the next line
-        private int drawWrapped(Graphics graphics, String text, int x, int y, int maxWidth) {
-            FontMetrics metrics = graphics.getFontMetrics();
-            String line = "";
-            for (String word : text.split(" ")) {
-                String attempt = line.isEmpty() ? word : line + " " + word;
-                if (metrics.stringWidth(attempt) > maxWidth && !line.isEmpty()) {
-                    graphics.drawString(line, x, y);
-                    y += metrics.getHeight();
-                    line = word;
-                } else {
-                    line = attempt;
-                }
-            }
-            if (!line.isEmpty()) {
-                graphics.drawString(line, x, y);
-                y += metrics.getHeight();
-            }
-            return y;
-        }
-
-        // The upgrade menu: three cards, each with an image, a name, and a description
-        public void drawMenu(Graphics graphics) {
-            int left = (getWidth() - MENU_WIDTH) / 2;
-            int top = (getHeight() - MENU_HEIGHT) / 2;
-
-            graphics.setColor(Color.GRAY);
-            graphics.fillRect(left, top, MENU_WIDTH, MENU_HEIGHT);
-
-            graphics.setColor(Color.WHITE);
-            graphics.setFont(new Font("Arial", Font.BOLD, 32));
-            graphics.drawString("Choose an upgrade", left + MENU_PAD, top + MENU_PAD + 32);
-
-            for (int i = 0; i < menuChoices.size(); i++) {
-                Upgrade upgrade = menuChoices.get(i);
-                Rectangle card = cardBounds(i);
-                boolean hovered = (i == hoveredCard);
-
-                graphics.setColor(hovered ? new Color(75, 75, 100) : new Color(50, 50, 60));
-                graphics.fillRect(card.x, card.y, card.width, card.height);
-                graphics.setColor(hovered ? Color.YELLOW : Color.WHITE);
-                graphics.drawRect(card.x, card.y, card.width, card.height);
-
-                // image (placeholder box until the upgrade supplies one)
-                int imageLeft = card.x + (card.width - CARD_IMAGE_SIZE) / 2;
-                int imageTop = card.y + 16;
-                BufferedImage image = upgrade.getImage();
-                if (image != null) {
-                    graphics.drawImage(image, imageLeft, imageTop, CARD_IMAGE_SIZE, CARD_IMAGE_SIZE, null);
-                } else {
-                    graphics.setColor(new Color(30, 30, 38));
-                    graphics.fillRect(imageLeft, imageTop, CARD_IMAGE_SIZE, CARD_IMAGE_SIZE);
-                    graphics.setColor(Color.GRAY);
-                    graphics.drawRect(imageLeft, imageTop, CARD_IMAGE_SIZE, CARD_IMAGE_SIZE);
-                }
-
-                int textLeft = card.x + 16;
-                int textWidth = card.width - 32;
-                int y = imageTop + CARD_IMAGE_SIZE + 36;
-
-                graphics.setColor(Color.WHITE);
-                graphics.setFont(new Font("Arial", Font.BOLD, 24));
-                y = drawWrapped(graphics, upgrade.getName(), textLeft, y, textWidth);
-
-                graphics.setColor(new Color(220, 220, 220));
-                graphics.setFont(new Font("Arial", Font.PLAIN, 18));
-                drawWrapped(graphics, upgrade.getDescription(), textLeft, y + 6, textWidth);
-
-                graphics.setColor(Color.YELLOW);
-                graphics.setFont(new Font("Arial", Font.BOLD, 16));
-                graphics.drawString("Click or press " + (i + 1), textLeft, card.y + card.height - 14);
-            }
-        }
     }
 }

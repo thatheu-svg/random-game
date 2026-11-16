@@ -1,3 +1,6 @@
+import java.awt.Color;
+import java.awt.Graphics;
+
 // An XP orb dropped by a dead enemy. It drifts toward the player when close enough.
 // Player (not the orb) decides what collecting it does.
 public class Orb {
@@ -35,5 +38,13 @@ public class Orb {
         double dx = orbX - playerCenterX;
         double dy = orbY - playerCenterY;
         return Math.hypot(dx, dy) <= radius / 2.0 + playerSize / 2.0;
+    }
+
+    public void draw(Graphics graphics) {
+        int diameter = radius * 2;
+        int left = (int) (orbX - radius);
+        int top = (int) (orbY - radius);
+        graphics.setColor(Color.CYAN);
+        graphics.fillOval(left, top, diameter, diameter);
     }
 }
