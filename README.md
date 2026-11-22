@@ -133,7 +133,7 @@ Run these from the project folder:
 
 ```
 mkdir out
-javac -d out *.java
+javac -d out src\*.java
 copy *.png out
 jar --create --file BerryBlast.jar --main-class Player -C out .
 java -jar BerryBlast.jar
@@ -216,4 +216,4 @@ This is my first coding project. I'm using Terra to motivate myself to learn, an
 
 ## Not finished
 - Find playtesters who can give my uncreative ahh some actually good and niche ideas. Had some friends try already but need more
-- make more upgrade art, 4/16 done so far
+- make more upgrade art, 5/16 done so far
