@@ -7,28 +7,25 @@ A top-down survival game written in Java with Swing. The player moves around the
 ## Requirements
 
 - Java 14 or newer (the code uses switch expressions)
-- These image files, either next to the `.java` files or inside the jar:
-  - `player.png`
-  - `galaxy_puddle.png`
-  - `fastenemy.png`
-  - `tankenemy.png`
-  - `smoke1.png`
-  - `smoke2.png`
-  - `smoke3.png`
+- These image files, inside the `images` folder (next to the `.java` files' parent folder, or inside the jar):
+  - `images/biggerpuddles.png`
+  - `images/fastenemy.png`
+  - `images/holdmoresuper.png`
+  - `images/miniboss.png`
+  - `images/moredamage.png`
+  - `images/movefaster.png`
+  - `images/possibleplayer.png`
+  - `images/possiblepuddle.png`
+  - `images/smoke1.png`
+  - `images/smoke2.png`
+  - `images/smoke3.png`
+  - `images/tankenemy.png`
+  - `images/tougherberry.png`
 - These image files will automatically be near the exe if you directly extract the zip, so don't fret too much
 - If you're just running the exe from the zip you don't need to install Java, it comes bundled with it. The Java requirement is only for running from source
 
 If an image is missing, the game still runs. The player and puddles fall back to drawn shapes, enemies draw without an icon, and the missing file's name is printed to the console.
-Edit: This is wrong at the moment. If the death animation fails, then the game will not keep running. This will be fixed next time, promise.
-
-## Running from source
-
-From the project folder:
-
-```
-javac *.java
-java Player
-```
+Edit: This is wrong at the moment. If the death animation fails, then the game will not keep running. This will be fixed soon, promise.
 
 ## Controls
 
@@ -49,9 +46,10 @@ java Player
 - Clicking places a puddle at the mouse position. If the click is farther than 500 pixels from the player, the puddle is placed 500 pixels away in the direction of the click.
 - A puddle does not land immediately. A warning outline is shown first. The delay is 10 frames for a click at the player's feet and up to 60 frames at maximum range.
 - When a puddle lands, it damages every enemy inside it once. After that it damages enemies inside it every 30 frames.
+- Puddles also slow enemies to 0.75x their normal speed while they're in it.
 - A puddle lasts 300 frames (5 seconds) after landing.
 - Puddles can be placed once every 30 frames.
-- Standing in a landed puddle heals the player 20 HP once per second, up to full hp (no overheal has been implemented yet but is certainly in the books).
+- Standing in a landed puddle heals the player 10 HP twice per second, up to full hp.
 
 ### Super
 
@@ -66,9 +64,9 @@ java Player
 
 ### Milestone wave and aura
 
-- At 500 kills, a wave bursts out from the player and kills every enemy on screen. The game keeps going, but enemies stop spawning for 5 seconds so you get a little breather.
-- The wave also unlocks the aura. Press E to cast it. It follows you around for 5 seconds (then has a 25 second cooldown), and a thin blue pulse goes out from you to the edge of it every 3 seconds so you can see how far it reaches.
-- Enemies inside the aura are slowed to 0.75x speed and get hit every half second. The more times the aura hits the same enemy, the more damage each hit does, so it's best on enemies you can't shake off. Enemies that leave the aura go back to normal speed and their hit count resets.
+- At 200 kills, a wave bursts out from the player and kills every enemy on screen. The game keeps going, but enemies stop spawning for 5 seconds so you get a little breather.
+- The wave also unlocks the aura. Press E to cast it. It follows you around for 5 seconds (then has a 25 second cooldown), and a thin blue pulse goes out from you to the edge of it every 2 seconds so you can see how far it reaches(and admittedly cuz I thought it looked cool).
+- Enemies inside the aura are slowed to 0.75x speed and get hit every half second. The more times the aura hits the same enemy, the more damage each hit does, so it's best on enemies you can't shake off. The slow effect does in fact stack with puddle slow. Enemies that leave the aura go back to normal speed and their hit count resets.
 - Like everything else, this resets when you restart.
 - This feature at the moment is vibecoded and edited by hand rather than being fully written by hand. Sorry about that, I struggled enormously to get this to work in the wake of some other issues in my life. I'll try to avoid doing this again.
 ### Player
@@ -81,23 +79,49 @@ java Player
 ### Enemies
 - Enemies spawn just outside a random edge of the screen and move toward the player.
 - There are three types: the basic enemy, `FastEnemy`, and `TankEnemy`. Fast and tank enemies draw an icon in the middle of the circle.
+- There is a unique fourth type of enemy: the miniboss. The miniboss will first spawn upon reaching a certain milestone of kills and then will continue spawning over time. At first, only one can appear on screen at once, but as time passes (increments every 3.3 minutes), the max amount increases, to a max of 4 at 10 minutes.
 - Each enemy has a health bar and flashes red briefly when damaged.
 - Enemies spawn in groups. Spawn rate, group size (1 to 4), speed, and the share of fast and tank enemies increase over 10 minutes of play. At most 30 enemies exist at once.
 - Enemies scale in damage and hp over time, as well as increasingly scale in speed. The amount each enemy scales in each stat is individualized.
 - Enemies will run a 3 part death animation over half a second. This art was previously made by Claude but I changed it to my own art made in Aseprite before release.
 
 ### Enemy types/stats
-- Basic Enemy stats: spawns 80% of the time at the start, going down to 50% at max difficulty. 100 hp, 40 dmg, 3-7 speed (increases over time and has small algorithmic variance), white with no icon
-- Fast enemies spawn 20% of the time. 60 hp, 1.5x basic enemy speed, 30 dmg, slightly smaller and blue with a speed icon
-- Tank enemies spawn 0% of the time at the start, going up to 30% at max difficulty. 160 hp, 0.8x speed, 50 dmg, slightly larger and gray with a shield icon
+- Basic Enemy stats: spawns 80% of the time at the start, going down to 50% at max difficulty. 100 hp, 25 dmg, 3-7 speed (increases over time and has small algorithmic variance), white with no icon
+- Fast enemies spawn 20% of the time. 60 hp, 1.5x basic enemy speed, 20 dmg, slightly smaller and blue with a speed icon
+- Tank enemies spawn 0% of the time at the start, going up to 30% at max difficulty. 160 hp, 0.8x speed, 30 dmg, slightly larger and gray with a shield icon
+- These stats scale over time.
 
 ### Upgrades
 
 - Xp counts using the xp bar on the bottom of the screen until the next upgrade. The xp needed grows by half a point for every xp gained so far.
 - When the count reaches 0, the screen shows a prompt. Press Enter to open the menu. The game pauses while the menu is open. 3 random still available upgrades appear on your screen and can be selected either with a number key or by clicking them.
-- Current upgrades: bigger puddles (+10 radius, can be bought twice), puddle damage (+5, and each purchase adds 5 more than the last), maximum player health (+20, and each purchase adds 10 more than the last), fleet feet (+2 movement speed, can be bought 3 times), more super charge held (+10%), less super drained (-10%), more hp healed from puddles (+10%), longer puddle place range (+80 pixels), faster puddle throwing (+20% faster but capped at 8 frames), xp magnet (xp orbs are pulled towards you from +100 more pixels than normal), healing orbs (+5 more healing for collecting an xp orb), aura slow increase(20% greater slow applied), and shorter aura cooldown (3 seconds each) Some of these have a limit to how many times they can be purchased. 
-- There are some unique upgrades that aren't just stat buffs that can be purchased once each run. Aftershock: puddles explode when expiring, dealing half damage in a 1.5x larger radius. Thorns: Enemies take damage when making contact with the player. Second wind: Once per run, when you take a fatal hit, the hit is cancelled out, you're restored to half of your max hp, and are given 5 seconds of invulnerability.
-- As of the moment, you can upgrade the aura ability before you have it. I haven't decided on whether this is a bug or a way to let players do some cool tech.
+
+| Upgrade | What it does | Max buys |
+|---|---|---|
+| Bigger Puddles | Puddles get +10 radius. | 2 |
+| More Damage | Puddles deal +5 damage. Each purchase adds 5 more than the last (+5, +10, +15...). | Unlimited |
+| Tougher Berry | +20 max HP. Each purchase adds 10 more than the last (+20, +30, +40...). | Unlimited |
+| Fleet Feet | +2 movement speed. | 3 |
+| Faster Throws | Puddles can be placed 20% faster (cooldown can't go below 8 frames). | 3 |
+| Long Arm | Puddles can be placed 80 pixels farther away. | 3 |
+| Puddle Healing | Standing in puddles heals 20% more. | Unlimited |
+| Overheal | Puddles can heal you past your max HP. Your overhealed max HP is multiplied by 1.2 for each purchase. | Unlimited |
+| Efficient Super | Your super drains 10% less charge. | Unlimited |
+| Bigger Super Tank | Your super meter holds 10% more charge. | Unlimited |
+| Magnet | XP orbs are pulled toward you from 100 pixels farther away. | 3 |
+| Healing Orbs | Collecting an XP orb heals 5 more HP. | 3 |
+| Puddle Slows | Enemies in puddles are slowed by an extra 0.2x (from 0.75x speed to 0.55x, then 0.35x). | 2 |
+| Shorter Aura Cooldown | The aura comes off cooldown 3 seconds faster (only matters once the aura is unlocked). | 5 |
+| Aura Slows More | The aura slows enemies 20% more (only matters once the aura is unlocked). | 2 |
+
+- There are some unique upgrades that aren't just stat buffs that can be purchased once each run:
+
+| Upgrade | What it does |
+|---|---|
+| Aftershock | Puddles explode when they expire, dealing half damage in a 1.5x larger radius. |
+| Thorns | Enemies that hit you take damage equal to your puddle damage. |
+| Second Wind | Once per run, when you take a fatal hit, you survive at half HP and become immune for 5 seconds. |
+- As of the moment, you can upgrade the aura ability before you have it. I haven't decided on whether this is a bug or a way to let players do some cool tech. I'll leave it in for now because it isn't really hurting anybody
 
 - **Upgrades reset on restart. This game is purely a roguelike for now, you will take nothing with you between lives except skill and pure passion, I guess**
 
@@ -114,14 +138,15 @@ Gameplay values are constants at the top of `PlayerPanel` in `Player.java`, and 
 | `FastEnemy.java` | Subclass of `Enemy` with lower HP, smaller size, and higher speed. |
 | `TankEnemy.java` | Subclass of `Enemy` with higher HP, larger size, and lower speed. |
 | `Upgrade.java` | Interface implemented by each upgrade. |
-| `Puddle.java` | The main attack of the player. Has been migrated out of player because the file has frankly gotten far too large to navigate.
-| `Orb.java` | The experience orbs that drop when enemies die. Has been migrated for the same reason as Puddle.
+| `Puddle.java` | The main attack of the player. Has been migrated out of player because the file has frankly gotten far too large to navigate. |
+| `Orb.java` | The experience orbs that drop when enemies die. Has been migrated for the same reason as Puddle. |
 | `Stats.java` | The place which all the stats changed by upgrades goes. Again is for reorganization. |
 | `Upgrades.java` | Not to be confused with Upgrade.java. Now holds all the upgrade classes. |
 | `UpgradeMenu.java` | Draws the upgrade menu, also for reorg. |
 | `Wave.java` | Just some drawing and variables assigned to their own file instead of clogging up Player. |
 | `Aura.java` | Just some drawing and variables assigned to their own file instead of clogging up Player. |
 | `DeadEnemy.java` | Is a small effect object, this is how I made enemy death animations work. |
+| `Boss.java` | Subclass of `Enemy` that holds minibosses with their various stat differences. |
 
 ## Accessing through itch.io
 https://tripperofmen.itch.io/berry-blast
@@ -134,7 +159,7 @@ Run these from the project folder:
 ```
 mkdir out
 javac -d out src\*.java
-copy *.png out
+copy images\*.png out
 jar --create --file BerryBlast.jar --main-class Player -C out .
 java -jar BerryBlast.jar
 ```
@@ -158,7 +183,7 @@ This is my first coding project. I'm using Terra to motivate myself to learn, an
 3. Explained procedural enemy spawning and helped me add enemies to `paintComponent`.
 4. Went through `Player.java` line by line with me, explained classes and objects, and reviewed my puddle attack, enemy HP, collision, blinking enemies, player HP, invincibility, game over and restart. Sometimes I asked for a "copypasta of everything fixed" when short on time.
 5. Helped me with my first upgrades and the `Upgrade` interface, the upgrade menu, key bindings, the `static` keyword, clamping puddle range, and delay that scales with distance. Fixed bugs like the P key and the `double` kill counter.
-6. Made the transparent `fastenemy.png` and `tankenemy.png` icons (placeholder outlines). Wrote the icon loading in `Enemy.java` and the `FastEnemy` / `TankEnemy` subclasses.
+6. Made the transparent `fastenemy.png` and `tankenemy.png` icons (placeholder outlines). Images sourced by me but edited to be transparent by claude. Wrote the icon loading in `Enemy.java` and the `FastEnemy` / `TankEnemy` subclasses. Will be replaced eventually.
 7. Helped with packaging (jar, exe, bundled Java). Fixed the game running too slow as a jar by writing the fixed-step `tick()`, and wrote the window centering and the smaller panel height.
 8. Replaced a chain of `if`s with a `switch`, fixed movement doubling and diagonal speed, and helped set up Git (branches, `.gitignore`, troubleshooting). Gave me the plan for the game-state enum, and the shuffled upgrade menu.
 9. Gave feedback on release and README requirements, walked through the release build step by step, and reviewed my Hack Club submission steps.
@@ -185,10 +210,22 @@ This is my first coding project. I'm using Terra to motivate myself to learn, an
 30. Compiled and ran my code in tests at several points to check it before I used it.
 31. Generated some ai art to use for enemy death animations, but it was never used in a release
 32. gave advice on using an effect object design
+33. Walked me through compiling Aseprite from source on Windows (Visual Studio, Windows SDK, CMake, Ninja, matching the Skia version, and the `SKUNICODE_LIBRARY` flag) and found the fix for the WakaTime extension error ("Windows cannot find '--language'").
+34. Explained why only the first upgrade icon loaded (the image fields were inside one nested class) so I could move the loader to the outer `Upgrades` class.
+35. Walked me through the death-animation effect object: pointed me to how `Puddle` and `Orb` work, explained `loadImages`, and helped me find why the game froze (images were never stored in fields).
+36. Explained window scaling (game coordinates vs window coordinates, `scale`, offsets, `toGameX/toGameY`) and listed the places in my code where the two were mixed up.
+37. Explained inheritance and polymorphism for the miniboss (`List<Boss>` vs `List<Enemy>`, `instanceof`), and why `isDead()` isn't available on a list.
+38. Reviewed my miniboss code several times without writing fixes: gave it a 4/10, and pointed me to where the counter was decremented after `removeIf`, the spawn loop, and the limit changer (no cap, then the `%` math and operator precedence).
+39. Helped me find the puddle slow bugs: the multiplier calculated only once, the flag never refreshed, overlapping puddles resetting each other, the lambda using the wrong variable, and the empty-puddle guard. I wrote the fixes.
+40. Found that the images folder wasn't being copied into the jar with its folder name, explained `build.bat` line by line, and checked my fix.
+41. Reviewed my upgrades and found the missing `PuddleSlows` buy counter, the mismatched description numbers, and the ignored boss damage argument.
+42. Made the concept pictures of a player and puddle, to look at only. Not used in the game.
+43. Gave feedback on my player sprite ideas, and explained the copyright and Supercell fan-content policy risks of using Brawl Stars-like art.
+44. Formatted the upgrade tables and image list for this README.
 
 ## What I wrote myself
 1. The starting movement game that I had at the beginning, before any of the changes Claude and I made after
-2. The art: `player.png` and `galaxy_puddle.png`, and the idea and theme of the game itself (a parody of Berry from Brawl Stars).
+2. The art: `player.png` and `galaxy_puddle.png`, and the idea and theme of the game itself (a parody of Berry from Brawl Stars). These are no longer used, and I've made my own art to parody the old art.
 3. My own answers and attempts for the puddle attack, enemy HP, `isDead`, `takeDamage`, `isInPuddle`, `isTouchingPlayer`, the damage flash, the player HP and hit cooldown, and game over and restart (with Claude steering: I wrote the code and Claude told me what was right or wrong).
 4. The first upgrades (bigger puddles, more damage, more player HP), registering them in the upgrade list, and getting the number keys to pick them (with Claude steering).
 5. The game states (`GameState` enum and its use in the game), from Claude's plan.
@@ -208,11 +245,23 @@ This is my first coding project. I'm using Terra to motivate myself to learn, an
 19. All the playtesting, balance numbers (milestone at 500, aura timings and radius), and the decisions about what the game should do.
 20. Made enemies have a death animation by using an effect object in the file DeadEnemy.java.
 21. Made enemy death animation art (3 parts that flash over half a second), and so far have 4/16 upgrade icons done. Used Aseprite.
+22. Made the Boss class and set the stats for it
+23. Wrote a vast majority of the miniboss spawn logic but had Claude debug.
+24. Made puddle slows somewhat by myself, with Claude doing some debugging (to speed up the otherwise substantial time it would take playtesting) and me looking up some stuff to figure out what to use to check all items in a list.
+25. A good amount of organization, moved images into their own folder and such.
+26. Forgot to mention this earlier, but I did the actual work of compiling Aseprite even if I used the aseprite github and Claude to figure out how to respond to errors and stuff.
+27. Made the windows scale more properly so the game doesn't become unplayable when not in 1080p.
 
 ## Known issues and limits
 
-- The window is sized for a 1080p screen (1920 by 1040 panel). Smaller screens will cut it off. It'll obviously also be small on big screens but that's a lot easier to manage
-- The basic enemy has no icon. This is intentional for now and I'll fix this at some point.
+- The window is sized for a 1080p screen (1920 by 1040 panel). Smaller screens will cut it off. It'll obviously also be small on big screens but that's a lot easier to manage. (I did some work to make it more playable but there still may be some issues, hard to test because I only have 1080p)
+- The basic enemy has no icon. This is intentional, and won't be changed unless I suddenly think that basic enemies should have an appearance that isn't truly basic
+
+## Not finished
+- Find playtesters who can give my uncreative ahh some actually good and niche ideas. Had some friends try already but need more
+- make more upgrade art, 5/18 done so far
+- Some things still have placeholder names, like possibleplayer.png and possiblepuddle.png.
+- The game won't run unless DeadEnemy can access the smoke pngs. It should have a fallback.
 
 ## Not finished
 - Find playtesters who can give my uncreative ahh some actually good and niche ideas. Had some friends try already but need more
