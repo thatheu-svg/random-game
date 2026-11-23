@@ -19,7 +19,7 @@ public class Enemy {
 
     private double x;
     private double y;
-    private final double speed;
+    private double speed;
     private int hp;
     private final int maxHp;
     private final int size;
@@ -28,13 +28,9 @@ public class Enemy {
     private final Color outlineColor;
     private BufferedImage icon;          // null means no icon
     private long lastHitTime = 0;
-    private double speedMultiplier = 1.0;   // 1.0 is normal; the aura lowers it
+    private double auraSpeedMultiplier = 1.0;   // 1.0 is normal; the aura lowers it
+    private double puddleSpeedMultiplier = 1.0;
     private int auraHits = 0;                // how many times the aura has hit this enemy in a row
-    int deathAnimationFrames = 0;
-    boolean runDeathCounter = false;
-    // private final BufferedImage deathAnimationOne = loadImages("smoke1.png");
-    // private final BufferedImage deathAnimationTwo = loadImages("smoke2.png");
-    // private final BufferedImage deathAnimationThree = loadImages("smoke3.png");
 
     public Enemy(double x, double y, double speed, int startingHp, int size, int damage, Color color, Color outlineColor) {
         this.x = x;
@@ -45,7 +41,7 @@ public class Enemy {
         this.size = size;
         this.damage = damage;
         this.color = color;
-        this.outlineColor = outlineColor; // a sama lama duma sama you assumin im a human
+        this.outlineColor = outlineColor;
     }
 
     // Subclasses call this from their constructor to pick an icon
@@ -94,8 +90,8 @@ public class Enemy {
         return size;
     }
 
-    public void setSpeedMultiplier(double speedMultiplier) {
-        this.speedMultiplier = speedMultiplier;
+    public void setAuraSpeedMultiplier(double speedMultiplier) {
+        this.auraSpeedMultiplier = speedMultiplier;
     }
 
     public int getAuraHits() {
@@ -110,10 +106,23 @@ public class Enemy {
         auraHits = 0;
     }
 
+    public double getPuddleSpeedMultiplier() {
+        return puddleSpeedMultiplier;
+    }
+
+    public void outOfPuddle() {
+        puddleSpeedMultiplier = 1.0;
+    }
+
+    public void setPuddleSpeedMultiplier(double speedMultiplier) {
+        this.puddleSpeedMultiplier = speedMultiplier;
+    }
+
     public void moveToward(double targetX, double targetY) {
         double dx = targetX - (x + size / 2.0);
         double dy = targetY - (y + size / 2.0);
         double distance = Math.hypot(dx, dy);
+        double speedMultiplier = auraSpeedMultiplier * puddleSpeedMultiplier;
 
         if (distance < 1) return;
 

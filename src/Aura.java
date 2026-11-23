@@ -12,9 +12,9 @@ public class Aura {
     private static final int RADIUS = 250;
     private static final int DURATION_FRAMES = 5 * FRAMES_PER_SECOND;
     private static final int FRAMES_PER_HIT = 30;         // frames between aura damage pulses
-    private static final int BASE_DAMAGE = 10;
+    private static final int BASE_DAMAGE = 20;
     private static final double DAMAGE_PER_HIT = 0.2;     // extra +20% of base damage per earlier hit on that enemy
-    private static final int PULSE_FRAMES = 3 * FRAMES_PER_SECOND;   // one pulse ring grows from the player to the aura's edge in this long
+    private static final int PULSE_FRAMES = 2 * FRAMES_PER_SECOND;   // one pulse ring grows from the player to the aura's edge in this long
 
     private boolean unlocked = false;
     private boolean active = false;
@@ -58,14 +58,14 @@ public class Aura {
                               int frameCount, double slowMultiplier) {
         for (Enemy enemy : enemies) {
             if (active && enemy.isInAura(playerX, playerY, playerSize, RADIUS)) {
-                enemy.setSpeedMultiplier(slowMultiplier);
+                enemy.setAuraSpeedMultiplier(slowMultiplier);
                 if (frameCount % FRAMES_PER_HIT == 0) {
                     enemy.addAuraHit();
                     double scaled = BASE_DAMAGE * (1 + enemy.getAuraHits() * DAMAGE_PER_HIT);
                     enemy.takeDamage((int) scaled);
                 }
             } else {
-                enemy.setSpeedMultiplier(1.0);
+                enemy.setAuraSpeedMultiplier(1.0);
                 enemy.resetAuraHits();
             }
         }

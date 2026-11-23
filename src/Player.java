@@ -47,6 +47,7 @@ public class Player {
             window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             window.setContentPane(new PlayerPanel());
             window.pack();
+            window.setExtendedState(JFrame.MAXIMIZED_BOTH);
 
             // Center the window on the monitor the mouse is on
             PointerInfo pointer = MouseInfo.getPointerInfo();
@@ -73,13 +74,18 @@ public class Player {
         private static final double STEP_NANOS = 1_000_000_000.0 / FRAMES_PER_SECOND;
         private static final int TICK_CHECK_MS = 4;          // how often the timer checks the clock
         private static final int MAX_STEPS_PER_TICK = 5;     // most game steps run in one check
+        private double scale = 1.0;    // how much the 1920x1040 game is shrunk or grown
+        private double offsetX = 0;    // black bar width on the left
+        private double offsetY = 0;    // black bar height on top
+        private double toGameX(int windowX) { return (windowX - offsetX) / scale; }
+        private double toGameY(int windowY) { return (windowY - offsetY) / scale; }
 
         // Player
         private final Stats stats = new Stats();
         private static final int PLAYER_SIZE = 48;
         private static final Color PLAYER_COLOR = new Color(128, 130, 177);  // used if the sprite fails to load
         private static final int HIT_COOLDOWN_FRAMES = 60;   // invincibility after being hit
-        private static final int HEAL_COOLDOWN_FRAMES = 60;
+        private static final int HEAL_COOLDOWN_FRAMES = 30;
         private int speedDuringSuper = stats.moveAmount * 2;
         private static final int SUPER_CHARGED_START = 0;
         private int superCharged = SUPER_CHARGED_START;
@@ -95,7 +101,7 @@ public class Player {
         private static final int INCREASE_IN_THETA = 12;
 
         // Milestone wave + aura
-        private static final int AURA_KILL_MILESTONE = 500;        // kills needed to trigger the wave and unlock the aura
+        private static final int AURA_KILL_MILESTONE = 200;        // kills needed to trigger the wave and unlock the aura
         private static final int WAVE_SPAWN_PAUSE_FRAMES = 5 * FRAMES_PER_SECOND;   // no spawns for 5 seconds after the wave
         private final Wave wave = new Wave();
         private final Aura aura = new Aura();
@@ -111,6 +117,7 @@ public class Player {
         // Upgrades
         private static final int BASE_XP_TO_UPGRADE = 3;  // kills needed before the extra from moreKillsToNextUpgrade
         private boolean secondWindProcced = false;
+
         // Enemy
         private static final int MAX_ENEMIES = 30;
         private static final int START_SPAWN_GAP = 300;      // 5 seconds between spawns at the start
@@ -121,9 +128,16 @@ public class Player {
         private static final int KILL_COUNT_START = 0;
         private int basicEnemyHp = 100;
         private int basicEnemySize = 50;
-        private int basicEnemyDamage = 40;
+        private int basicEnemyDamage = 25;
         private static final Color BASIC_ENEMY_COLOR = (Color.WHITE);
         private static final Color BASIC_ENEMY_OUTLINE_COLOR = (Color.GRAY);
+
+        // Minibosses
+        private static final int FIRST_MINI_SPAWN = 50;
+        private int minibossesAlive = 0;
+        private int minibossLimit = 1;
+        private int firstKillTime = 0;
+        private boolean isFirstKill = true;
 
         // Things in the world
         private final List<Enemy> enemies = new ArrayList<>();
@@ -135,8 +149,8 @@ public class Player {
         private final Random random = new Random();
 
         // Images (null if the file couldn't be loaded)
-        private final BufferedImage playerSprite = loadSprite("player.png");
-        private final BufferedImage puddleSprite = loadSprite("galaxy_puddle.png");
+        private final BufferedImage playerSprite = loadSprite("images/possibleplayer.png");
+        private final BufferedImage puddleSprite = loadSprite("images/possiblepuddle.png");
 
         // The upgrade menu (draws its own cards and finds which one is clicked)
         private final UpgradeMenu menu = new UpgradeMenu();
@@ -181,15 +195,15 @@ public class Player {
                 @Override
                 public void mousePressed(MouseEvent event) {
                     if (state == GameState.UPGRADE_MENU) {
-                        int card = menu.cardAt(event.getX(), event.getY(), getWidth(), getHeight());
+                        int card = menu.cardAt((int) toGameX(event.getX()), (int) toGameY(event.getY()), PANEL_WIDTH, PANEL_HEIGHT);
                         if (card >= 0) chooseUpgrade(card);
                         return;
                     }
                     double playerCenterX = playerX + PLAYER_SIZE / 2.0;
                     double playerCenterY = playerY + PLAYER_SIZE / 2.0;
 
-                    double targetX = event.getX();
-                    double targetY = event.getY();
+                    double targetX = toGameX(event.getX());
+                    double targetY = toGameY(event.getY());
                     double dx = targetX - playerCenterX;
                     double dy = targetY - playerCenterY;
                     double distance = Math.hypot(dx, dy);
@@ -216,7 +230,7 @@ public class Player {
                 @Override
                 public void mouseMoved(MouseEvent event) {
                     if (state != GameState.UPGRADE_MENU) return;
-                    if (menu.updateHover(event.getX(), event.getY(), getWidth(), getHeight())) {
+                    if (menu.updateHover((int) toGameX(event.getX()), (int) toGameY(event.getY()), PANEL_WIDTH, PANEL_HEIGHT)) {
                         repaint();
                     }
                 }
@@ -287,7 +301,7 @@ public class Player {
             }
 
             // Enter opens the upgrade menu once enough XP is collected
-            if (pressed && keyCode == KeyEvent.VK_ENTER && xpToUpgrade <= 0 && state == GameState.PLAYING) {
+            if (pressed && keyCode == KeyEvent.VK_ENTER && state == GameState.PLAYING) {
                 if (menu.open(allUpgrades, random)) {
                     state = GameState.UPGRADE_MENU;
                     repaint();
@@ -321,16 +335,16 @@ public class Player {
             Point mouse = getMousePosition();     // window coordinates, null if the cursor is outside
             if (mouse == null) return;
 
-            double dx = mouse.x - (playerX + PLAYER_SIZE / 2.0);
-            double dy = mouse.y - (playerY + PLAYER_SIZE / 2.0);
+            double dx = toGameX(mouse.x) - (playerX + PLAYER_SIZE / 2.0);
+            double dy = toGameY(mouse.y) - (playerY + PLAYER_SIZE / 2.0);
             double distance = Math.hypot(dx, dy);
             if (distance < 1) return;             // already on the cursor
 
             double step = Math.min(speedDuringSuper, distance);   // don't overshoot the cursor
             playerX += dx / distance * step;
             playerY += dy / distance * step;
-            playerX = Math.max(0, Math.min(playerX, getWidth() - PLAYER_SIZE));
-            playerY = Math.max(0, Math.min(playerY, getHeight() - PLAYER_SIZE));
+            playerX = Math.max(0, Math.min(playerX, PANEL_WIDTH - PLAYER_SIZE));
+            playerY = Math.max(0, Math.min(playerY, PANEL_HEIGHT - PLAYER_SIZE));
 
             superCharged = Math.max(superCharged - stats.chargeDrainedPerFrame, 0);
         }
@@ -366,13 +380,14 @@ public class Player {
                 deadEnemy.tickDuration();
             }
             handleSpawning();
+            minibossLimitChanger();
             double startCx = playerX + PLAYER_SIZE / 2.0;
             double startCy = playerY + PLAYER_SIZE / 2.0;
             updateMovement();
             updateSuper();
             aura.updateTimers(stats.auraCooldownFrames);
             aura.affectEnemies(enemies, playerX, playerY, PLAYER_SIZE, frameCount, stats.auraSlowMultiplier);
-            wave.update(getWidth(), getHeight());
+            wave.update(PANEL_WIDTH, PANEL_HEIGHT);
             if (isUsingSuper) {
                 layTrail(startCx, startCy, playerX + PLAYER_SIZE / 2.0, playerY + PLAYER_SIZE / 2.0);
             }
@@ -402,30 +417,44 @@ public class Player {
                 if (puddle.delay > 0) {
                     puddle.delay--;
                     if (puddle.delay == 0) {
-                        damageEnemiesIn(puddle);  // the landing hit
+                        affectEnemiesIn(puddle);  // the landing hit
                     }
                 } else {
                     puddle.age++;
                     if (puddle.age % FRAMES_PER_HIT == 0) {
-                        damageEnemiesIn(puddle);
+                        affectEnemiesIn(puddle);
                     }
                 }
                 if (puddle.isTouchingPlayer(playerCenterX, playerCenterY, PLAYER_SIZE)
                         && healCooldown == HEAL_COOLDOWN_FRAMES
                         && puddle.delay == 0
-                        && playerHp < stats.playerMaxHp) {
+                        && playerHp < stats.playerUpgradedMaxHp) {
                     healPlayer(stats.hpHealed);
                 }
             }
             // Remove dead enemies and expired puddles, also counts kills for now
             int enemiesBefore = enemies.size();
             for (Enemy enemy : enemies) {
+                // checks to see if an enemy isn't in any puddle, then resets its speed to normal
+                boolean notInAnyPuddle = puddles.stream().noneMatch(p -> enemy.isInPuddle(p.x, p.y, p.radius));
+                if (notInAnyPuddle) {
+                    enemy.outOfPuddle();
+                }
+                // makes the small effect object when an enemy dies. It's for death animation and to track minis
                 if (enemy.isDead()) {
                     int deathX = enemy.getPosX();
                     int deathY = enemy.getPosY();
                     int duration = 0;
-                        DeadEnemy deadEnemy = new DeadEnemy(deathX, deathY, enemy.getSize(), duration);
-                        deadEnemies.add(deadEnemy);
+
+                    DeadEnemy deadEnemy = new DeadEnemy(deathX, deathY, enemy.getSize(), duration);
+                    deadEnemies.add(deadEnemy);
+                    if (enemy instanceof Boss) {
+                        minibossesAlive--;
+                        if (isFirstKill) {
+                            firstKillTime = frameCount;
+                            isFirstKill = false;
+                        }
+                    }
                 for (int i = 1; i < 2; i++) {
                     Orb orb = new Orb(enemy.getPosX(), enemy.getPosY(), 30, 10, 1, false);
                     orbs.add(orb);
@@ -442,10 +471,11 @@ public class Player {
                     int aftershockRadius = puddle.radius;
                     puddle.radius = (int) (puddle.radius * 1.5);
                     puddle.damage = (int) (puddle.damage * 0.5);
-                    damageEnemiesIn(puddle);
+                    affectEnemiesIn(puddle);
                     puddle.radius = aftershockRadius;
                     puddle.damage = aftershockDamage;
                 }
+                
             }
             puddles.removeIf(Puddle::isExpired);
             deadEnemies.removeIf(DeadEnemy::durationExpired);
@@ -497,15 +527,15 @@ public class Player {
             dy *= WASD_DURING_SUPER;
             }
 
-            playerX = Math.max(0, Math.min(playerX + dx, getWidth() - PLAYER_SIZE));
-            playerY = Math.max(0, Math.min(playerY + dy, getHeight() - PLAYER_SIZE));
+            playerX = Math.max(0, Math.min(playerX + dx, PANEL_WIDTH - PLAYER_SIZE));
+            playerY = Math.max(0, Math.min(playerY + dy, PANEL_HEIGHT - PLAYER_SIZE));
         }
         // Collecting an orb gives XP (and healing, if the upgrade is owned)
         private void collectOrb(Orb orb) {
             orb.collected = true;
             xpToUpgrade -= orb.xp;
             moreXpToNextUpgrade += orb.xp / 2.0;
-            playerHp = Math.min(playerHp + stats.orbHeal, stats.playerMaxHp);
+            playerHp = Math.min(playerHp + stats.orbHeal, stats.playerUpgradedMaxHp);
         }
 
         // Lowers the player's HP and starts the invincibility window
@@ -524,7 +554,7 @@ public class Player {
 
         private void healPlayer(int amount) {
             playerHp = playerHp + amount;
-            playerHp = Math.min(playerHp, stats.playerMaxHp);
+            playerHp = Math.min(playerHp, stats.playerUpgradedMaxHp);
             healCooldown = 0;
         }
 
@@ -558,6 +588,8 @@ public class Player {
             allUpgrades.add(new Upgrades.HealingOrbs(stats));
             allUpgrades.add(new Upgrades.AuraMoreOften(stats));
             allUpgrades.add(new Upgrades.AuraSlowsMore(stats));
+            allUpgrades.add(new Upgrades.Overheal(stats));
+            allUpgrades.add(new Upgrades.PuddleSlows(stats));
         }
 
         // Puts everything back to its starting values
@@ -584,6 +616,10 @@ public class Player {
             superDistanceSincePuddle = 0;
             secondWindProcced = false;
             theta = 0;
+            minibossesAlive = 0;
+            minibossLimit = 1;
+            firstKillTime = 0;
+            isFirstKill = true;
             wave.reset();
             aura.reset();
             buildUpgrades();
@@ -597,10 +633,11 @@ public class Player {
         // puddles
 
         // Damages every enemy currently inside the given puddle
-        private void damageEnemiesIn(Puddle puddle) {
+        private void affectEnemiesIn(Puddle puddle) {
             for (Enemy enemy : enemies) {
                 if (enemy.isInPuddle(puddle.x, puddle.y, puddle.radius)) {
                     enemy.takeDamage(puddle.damage);
+                    enemy.setPuddleSpeedMultiplier(stats.puddleSlowMultiplier);
                     hits = hits + 1;
                     if (hitGainCooldown <= 0) {
                         superCharged = Math.min(stats.superChargeNeeded, superCharged + SUPER_CHARGE_PER_HIT);
@@ -660,22 +697,34 @@ public class Player {
                 double y = spot[1] + random.nextInt(60) - 30;
                 double roll = random.nextDouble();
                 Enemy enemy;
+                Boss miniboss;
                 if (roll < difficulty * 0.3) {
-                    enemy = new TankEnemy(x, y, speed, (int) (basicEnemyHp * 1.6 * scaling), (int) (basicEnemyDamage * 1.25 * Math.max(scaling / 1.5, 1)));
+                    enemy = new TankEnemy(x, y, speed, (int) (basicEnemyHp * scaling), (int) (basicEnemyDamage * Math.max(scaling / 1.2, 1)));
                 } else if (roll < difficulty * 0.3 + 0.2) {
-                    enemy = new FastEnemy(x, y, speed, (int) (basicEnemyHp * 0.6 * Math.max(scaling / 1.5, 1)), (int) (basicEnemyDamage * 0.75 * Math.max(scaling / 1.2, 1)));
+                    enemy = new FastEnemy(x, y, speed, (int) (basicEnemyHp * Math.max(scaling / 1.2, 1)), (int) (basicEnemyDamage * Math.max(scaling, 1)));
                 } else {
-                    enemy = new Enemy(x, y, speed, (int) (basicEnemyHp * Math.max(scaling / 1.5, 1)),
+                    enemy = new Enemy(x, y, speed, (int) (basicEnemyHp * Math.max(scaling / 1.2, 1)),
                             basicEnemySize, (int) (basicEnemyDamage * scaling), BASIC_ENEMY_COLOR, BASIC_ENEMY_OUTLINE_COLOR);
                 }
                 enemies.add(enemy);
+                if (killCount >= FIRST_MINI_SPAWN && minibossesAlive < minibossLimit) {
+                    minibossesAlive++;
+                    miniboss =  new Boss(x, y, speed, (int) (basicEnemyHp * Math.max(scaling, 1)), (int) (basicEnemyDamage * Math.max(scaling * 1.1, 1)));
+                    enemies.add(miniboss);
+                }
+            }
+        }
+
+        private void minibossLimitChanger() {
+            if (isFirstKill == false && (frameCount - firstKillTime) % (FRAMES_TO_MAX_DIFFICULTY / 3.0) == 0 && minibossLimit < 4) {
+                minibossLimit++;
             }
         }
 
         // Returns {x, y} for a random point just outside one of the four edges
         private double[] randomEdgePoint() {
-            int w = getWidth();
-            int h = getHeight();
+            int w = PANEL_WIDTH;
+            int h = PANEL_HEIGHT;
 
             return switch (random.nextInt(4)) {
                 case 0 -> new double[] {random.nextInt(w), -40};   // top
@@ -687,9 +736,20 @@ public class Player {
         // DRAWING
 
         // Draws everything, back to front: puddles, player, enemies, UI
+
+        private void updateScale() {
+            scale = Math.min(getWidth() / (double) PANEL_WIDTH, getHeight() / (double) PANEL_HEIGHT);
+            offsetX = (getWidth() - PANEL_WIDTH * scale) / 2.0;
+            offsetY = (getHeight() - PANEL_HEIGHT * scale) / 2.0;
+        }
+
         @Override
         protected void paintComponent(Graphics graphics) {
             super.paintComponent(graphics);
+            updateScale();
+            Graphics2D g2 = (Graphics2D) graphics;
+            g2.translate(offsetX, offsetY);
+            g2.scale(scale, scale);
 
             drawPuddles(graphics);
             aura.draw(graphics, playerX, playerY, PLAYER_SIZE);
@@ -711,7 +771,7 @@ public class Player {
 
             switch (state) {
                 case PAUSED -> drawGamePaused(graphics);
-                case UPGRADE_MENU -> menu.draw(graphics, getWidth(), getHeight());
+                case UPGRADE_MENU -> menu.draw(graphics, PANEL_WIDTH, PANEL_HEIGHT);
                 case GAME_OVER -> drawGameOver(graphics);
                 case PLAYING -> {}
             }
@@ -787,7 +847,7 @@ public class Player {
         private void drawHits(Graphics graphics) {
             graphics.setColor(Color.WHITE);
             graphics.setFont(new Font("Arial", Font.BOLD, 24));
-            graphics.drawString("Hits:" + hits, getWidth()/2, getHeight()/2 - 100);
+            graphics.drawString("Hits:" + hits, PANEL_WIDTH/2, PANEL_HEIGHT/2 - 100);
         }
 
         private void drawSuperRing(Graphics graphics) {
@@ -805,13 +865,13 @@ public class Player {
         private void drawGamePaused(Graphics graphics) {
             graphics.setColor(Color.WHITE);
             graphics.setFont(new Font("Arial", Font.BOLD, 48));
-            graphics.drawString("PAUSED", getWidth() / 2 - 100, getHeight() / 2);
+            graphics.drawString("PAUSED", PANEL_WIDTH / 2 - 100, PANEL_HEIGHT / 2);
         }
 
         private void drawGameOver(Graphics graphics) {
             graphics.setColor(Color.WHITE);
             graphics.setFont(new Font("Arial", Font.BOLD, 48));
-            graphics.drawString("It's genuinely so over...", getWidth() / 2 - 200, getHeight() / 2);
+            graphics.drawString("It's genuinely so over...", PANEL_WIDTH / 2 - 200, PANEL_HEIGHT / 2);
         }
 
     }

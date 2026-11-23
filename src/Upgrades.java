@@ -1,5 +1,41 @@
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
 public final class Upgrades {
+    private static final Map<String, BufferedImage> imageCache = new HashMap<>();
+
+    public static BufferedImage biggerpuddles = loadImages("images/biggerpuddles.png");
+    public static BufferedImage movefaster = loadImages("images/movefaster.png");
+    public static BufferedImage moredamage = loadImages("images/moredamage.png");
+    public static BufferedImage tougherberry = loadImages("images/tougherberry.png");
+    public static BufferedImage holdmoresuper = loadImages("images/holdmoresuper.png");
+
+    public static BufferedImage loadImages(String path) {
+        if (imageCache.containsKey(path)) {
+            return imageCache.get(path);
+        }
+        BufferedImage image = null;
+        try (InputStream in = Enemy.class.getResourceAsStream("/" + path)) {
+            if (in != null) {
+                image = ImageIO.read(in);
+            } else if (new File(path).exists()) {
+                image = ImageIO.read(new File(path));
+            }
+        } catch (IOException e) {
+            // falls through to the message below
+        }
+        if (image == null) {
+            System.err.println("Could not load icon: " + path);
+        }
+        imageCache.put(path, image);
+        return image;
+    }
     public static class BiggerPuddles implements Upgrade {
+
         private static final int MAX_BUYS = 2;
         private int bought = 0;
         private final Stats stats;
@@ -26,6 +62,10 @@ public final class Upgrades {
         @Override
         public boolean isAvailable() {
             return bought < MAX_BUYS;
+        }
+
+        public BufferedImage getImage() {
+            return biggerpuddles;
         }
     }
 
@@ -57,6 +97,10 @@ public final class Upgrades {
         public boolean isAvailable() {
             return bought < MAX_BUYS;
         }
+
+        public BufferedImage getImage() {
+            return movefaster;
+        }
     }
 
     public static class MoreDamage implements Upgrade {
@@ -81,6 +125,10 @@ public final class Upgrades {
             stats.damage += 5 + moreDamageNextTime;
             moreDamageNextTime += 5;
         }
+
+        public BufferedImage getImage() {
+            return moredamage;
+        }
     }
 
     public static class MorePlayerHp implements Upgrade {
@@ -104,6 +152,10 @@ public final class Upgrades {
         public void apply() {
             stats.playerMaxHp += 20 + moreHpNextTime;
             moreHpNextTime += 10;
+        }
+
+        public BufferedImage getImage() {
+            return tougherberry;
         }
     }
 
@@ -149,6 +201,10 @@ public final class Upgrades {
         public void apply() {
             stats.superChargeNeeded *= 1.1;
         }
+
+        public BufferedImage getImage() {
+            return holdmoresuper;
+        }
     }
 
     public static class HealYourselfMore implements Upgrade {
@@ -164,12 +220,12 @@ public final class Upgrades {
 
         @Override
         public String getDescription() {
-            return "Standing in puddles heals 10% more.";
+            return "Standing in puddles heals 20% more.";
         }
 
         @Override
         public void apply() {
-            stats.hpHealed *= 1.1;
+            stats.hpHealed *= 1.2;
         }
     }
 
@@ -434,6 +490,58 @@ public final class Upgrades {
         @Override
         public void apply() {
             stats.auraSlowMultiplier *= 0.8;
+            bought++;
+        }
+
+        @Override
+        public boolean isAvailable() {
+            return bought < MAX_BUYS;
+        }
+    }
+
+    public static class Overheal implements Upgrade {
+        private final Stats stats;
+
+        public Overheal(Stats stats) {
+            this.stats = stats;
+        }
+        @Override
+        public String getName() {
+            return "Overheal";
+        }
+
+        @Override
+        public String getDescription() {
+            return "Puddles can now heal you past max hp. Your overhealed max hp is the original * 1.2(Number of times this is bought).";
+        }
+
+        @Override
+        public void apply() {
+            stats.playerUpgradedMaxHp *= 1.2;
+        }
+    }
+
+    public static class PuddleSlows implements Upgrade {
+        private static final int MAX_BUYS = 2;
+        private int bought = 0;
+        private final Stats stats;
+
+        public PuddleSlows(Stats stats) {
+            this.stats = stats;
+        }
+        @Override
+        public String getName() {
+            return "Puddle slows";
+        }
+
+        @Override
+        public String getDescription() {
+            return "The amount puddles slow enemies down by is increased by 0.2x (from 0.75x speed to 0.55)";
+        }
+
+        @Override
+        public void apply() {
+            stats.puddleSlowMultiplier -= 0.2;
             bought++;
         }
 

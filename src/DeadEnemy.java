@@ -17,9 +17,9 @@ public class DeadEnemy {
         this.y = deathY;
         this.size = size;
         this.duration = duration;
-        this.deathAnimationOne = Enemy.loadImages("smoke1.png");
-        this.deathAnimationTwo = Enemy.loadImages("smoke2.png");
-        this.deathAnimationThree = Enemy.loadImages("smoke3.png");
+        this.deathAnimationOne = Enemy.loadImages("images/smoke1.png");
+        this.deathAnimationTwo = Enemy.loadImages("images/smoke2.png");
+        this.deathAnimationThree = Enemy.loadImages("images/smoke3.png");
     }
 
     public boolean durationExpired() {

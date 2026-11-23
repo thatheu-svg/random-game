@@ -1,6 +1,6 @@
 public class Stats {
     private static final int FRAMES_PER_SECOND = 60;
-    private static final int RADIUS_FIRST = 48;
+    private static final int RADIUS_FIRST = 60;
     int radius;
     private static final int MOVE_AMOUNT = 8;
     int moveAmount;
@@ -8,11 +8,12 @@ public class Stats {
     int damage;
     private static final int PLAYER_MAX_HP = 100;
     int playerMaxHp;
+    int playerUpgradedMaxHp;
     private static final int CHARGE_DRAINED_PER_FRAME = 20;
     int chargeDrainedPerFrame;
     private static final int SUPER_CHARGE_NEEDED_START = 1600;
     int superChargeNeeded;
-    private static final int HP_HEALED = 20;
+    private static final int HP_HEALED = 10;
     int hpHealed;
     boolean aftershockActive;
     boolean thornsActive;
@@ -29,6 +30,8 @@ public class Stats {
     int auraCooldownFrames;
     private static final double AURA_SLOW_MULTIPLIER = 0.75;
     double auraSlowMultiplier;
+    private static final double PUDDLE_SLOW_MULTIPLIER = 0.75;
+    double puddleSlowMultiplier;
     public Stats() { reset(); }
 
     public void reset() {
@@ -36,6 +39,7 @@ public class Stats {
         moveAmount = MOVE_AMOUNT;
         damage = DAMAGE_FIRST;
         playerMaxHp = PLAYER_MAX_HP;
+        playerUpgradedMaxHp = PLAYER_MAX_HP;
         chargeDrainedPerFrame = CHARGE_DRAINED_PER_FRAME;
         superChargeNeeded = SUPER_CHARGE_NEEDED_START;
         hpHealed = HP_HEALED;
@@ -48,5 +52,6 @@ public class Stats {
         orbHeal = ORB_HEAL_START;
         auraCooldownFrames = AURA_COOLDOWN_FRAMES;
         auraSlowMultiplier = AURA_SLOW_MULTIPLIER;
+        puddleSlowMultiplier = PUDDLE_SLOW_MULTIPLIER;
     }
 }
